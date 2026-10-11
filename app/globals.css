@@ -1,8 +1,25 @@
+/* สีชุดเดียวทั้งแอป: ขนมปังเป็นสีทองของเปลือกขนมปัง ปลาเป็นสีน้ำเงินของทะเลสาบ */
 :root {
-  --bg: #ffffff;
+  color-scheme: light;
+  --bg: #ecf1f2;
+  --surface: #ffffff;
+  --sunk: #e1e8ea;
   --ink: #13232a;
   --muted: #566870;
   --line: #cdd8db;
+  --bread: #d9962f;
+  --bread-deep: #8f560b;
+  --bread-soft: #f8e8cc;
+  --on-bread: #2a1903;
+  --fish: #1c6f8e;
+  --fish-deep: #135670;
+  --fish-soft: #d6e9f0;
+  --on-fish: #ffffff;
+  --none-soft: #e4e9eb;
+  --danger: #b23a2b;
+  --warn-soft: #fbebd9;
+  --warn-ink: #7a4406;
+  --scrim: rgba(10, 20, 25, 0.55);
 }
 
 * {
@@ -11,74 +28,20 @@
 
 html,
 body {
-  height: 100%;
+  min-height: 100%;
   margin: 0;
 }
 
+/* ไม่ใช้ web font เพื่อให้เบาบนสัญญาณอ่อน */
 body {
-  background: var(--bg);
+  background: var(--surface);
   color: var(--ink);
   font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "Leelawadee UI", Thonburi, sans-serif;
   font-size: 18px;
   line-height: 1.6;
 }
 
-.screen {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 24px 20px;
-  text-align: center;
-}
-
-.status {
-  margin: 0;
-  font-size: 1.25rem;
-  color: var(--muted);
-}
-
-.hello {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.team {
-  margin: 0;
-  font-size: 2.6rem;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.button {
-  font: inherit;
-  font-size: 1.25rem;
-  font-weight: 700;
-  padding: 14px 28px;
-  border: 0;
-  border-radius: 16px;
-  background: var(--ink);
-  color: var(--bg);
-}
-
-.dev {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  max-width: 320px;
-}
-
-.dev label {
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
-.dev input {
-  font: inherit;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
 }

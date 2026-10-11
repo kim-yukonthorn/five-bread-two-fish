@@ -1,0 +1,237 @@
+/* จอผู้เล่น: เต็มจอด้วยสีของทีม ตัวอักษรใหญ่ ปุ่มใหญ่ ขั้นตอนน้อย */
+
+.screen {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  text-align: center;
+  background: var(--surface);
+  color: var(--ink);
+  --cut: var(--surface);
+}
+
+.bread {
+  background: var(--bread);
+  color: var(--on-bread);
+  --cut: var(--bread);
+}
+
+.fish {
+  background: var(--fish);
+  color: var(--on-fish);
+  --cut: var(--fish);
+}
+
+.inner {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.status {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--muted);
+}
+
+.hello {
+  margin: 0;
+  font-size: 1.15rem;
+  opacity: 0.85;
+  overflow-wrap: anywhere;
+}
+
+.teamIcon {
+  width: 128px;
+  height: 128px;
+}
+
+.teamName {
+  margin: 0;
+  font-size: 3.8rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.noTeam {
+  margin: 0;
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.myRule {
+  width: 100%;
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-size: 1.05rem;
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.myRule b {
+  display: block;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.banner {
+  margin: 0;
+  width: 100%;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.choice {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.join {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 72px;
+  border: 3px solid var(--surface);
+  border-radius: 18px;
+  padding: 16px 12px;
+  font: inherit;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.join:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.join_bread {
+  background: var(--bread);
+  color: var(--on-bread);
+  --cut: var(--bread);
+}
+
+.join_fish {
+  background: var(--fish);
+  color: var(--on-fish);
+  --cut: var(--fish);
+}
+
+.joinIcon {
+  width: 2.2em;
+  height: 2.2em;
+  flex: none;
+}
+
+.rule {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.cooldownLabel {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.cooldownTime {
+  margin: 0;
+  font-size: 4.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.sheetWrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--scrim);
+}
+
+.sheet {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: 22px 22px 0 0;
+  padding: 24px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+}
+
+.sheet h2 {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.sheet p {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--muted);
+}
+
+.ghost {
+  border: 0;
+  background: transparent;
+  padding: 14px;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.plainButton {
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 14px 28px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--ink);
+  color: var(--surface);
+  cursor: pointer;
+}
+
+.dev {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.dev label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.dev input {
+  font: inherit;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
