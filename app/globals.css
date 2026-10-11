@@ -1,0 +1,84 @@
+:root {
+  --bg: #ffffff;
+  --ink: #13232a;
+  --muted: #566870;
+  --line: #cdd8db;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "Leelawadee UI", Thonburi, sans-serif;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.screen {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 20px;
+  text-align: center;
+}
+
+.status {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--muted);
+}
+
+.hello {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.team {
+  margin: 0;
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.button {
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 14px 28px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.dev {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.dev label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.dev input {
+  font: inherit;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
