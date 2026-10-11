@@ -1,12 +1,12 @@
 import { adminMove } from "@/lib/admin";
-import { rejectUnlessToken } from "@/lib/admin-auth";
+import { rejectUnlessAdmin } from "@/lib/admin-auth";
 import { readJson, serverError } from "@/lib/http";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 // POST /api/admin/players/[id]/move  body { to: 'bread' | 'fish' | null, applyCooldown }
 export async function POST(request: Request, ctx: RouteContext<"/api/admin/players/[id]/move">) {
-  const denied = rejectUnlessToken(request, "ADMIN_TOKEN");
+  const denied = rejectUnlessAdmin(request);
   if (denied) return denied;
 
   const { id } = await ctx.params;

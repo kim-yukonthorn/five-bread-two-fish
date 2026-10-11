@@ -1,10 +1,10 @@
 import { getEvents } from "@/lib/admin";
-import { rejectUnlessToken } from "@/lib/admin-auth";
+import { rejectUnlessAdmin } from "@/lib/admin-auth";
 import { serverError } from "@/lib/http";
 
 // GET /api/admin/events: log การเปลี่ยนทีม ใหม่สุดก่อน
 export async function GET(request: Request) {
-  const denied = rejectUnlessToken(request, "ADMIN_TOKEN");
+  const denied = rejectUnlessAdmin(request);
   if (denied) return denied;
   try {
     return Response.json({ events: await getEvents() });

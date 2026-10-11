@@ -1,10 +1,10 @@
-import { rejectUnlessToken } from "@/lib/admin-auth";
+import { rejectUnlessAdmin } from "@/lib/admin-auth";
 import { serverError } from "@/lib/http";
 import { getStatus } from "@/lib/results";
 
 // GET /api/results: ตอบแค่ { status } ไม่ส่งตัวเลข ตัวเลขออกทาง reveal เท่านั้น
 export async function GET(request: Request) {
-  const denied = rejectUnlessToken(request, "RESULTS_TOKEN");
+  const denied = rejectUnlessAdmin(request);
   if (denied) return denied;
   try {
     return Response.json({ status: await getStatus() });

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Timeline, TimelineState, TimelineStep } from "@/lib/results";
-import { TEAM, TeamIcon, type GameStatus } from "../../ui/teams";
+import { PinForm, adminPin, pinHeaders } from "../ui/admin-pin";
+import { TEAM, TeamIcon, type GameStatus } from "../ui/teams";
 import styles from "./results.module.css";
 
 // เข้ามาแล้วยังไม่เปิดเผยผล กดเริ่มจึง lock เกมแล้วเล่น recap
@@ -96,15 +97,16 @@ function drawRiver(canvas: HTMLCanvasElement, timeline: Timeline, index: number)
   }
 }
 
-export default function ResultsClient({ token }: { token: string }) {
+export default function ResultsClient() {
   const [view, setView] = useState<View>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
+  const [pinTried, setPinTried] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const call = useCallback(
     (path: string, method: "GET" | "POST") =>
-      fetch(path, { method, headers: { "x-admin-token": token }, signal: AbortSignal.timeout(15_000) }),
-    [token],
+      fetch(path, { method, headers: pinHeaders(), signal: AbortSignal.timeout(15_000) }),
+    [],
   );
 
   const fetchStatus = useCallback(async (): Promise<View> => {
@@ -167,7 +169,18 @@ export default function ResultsClient({ token }: { token: string }) {
   }, [view]);
 
   if (view.kind === "loading") return <main className={styles.page} />;
-  if (view.kind === "unauthorized") return <main className={`${styles.page} ${styles.blank}`}>ไม่พบหน้านี้</main>;
+  if (view.kind === "unauthorized") {
+    return (
+      <PinForm
+        wrong={pinTried}
+        onSubmit={(pin) => {
+          adminPin.set(pin);
+          setPinTried(true);
+          fetchStatus().then(setView);
+        }}
+      />
+    );
+  }
 
   if (view.kind === "idle") {
     const notStarted = view.status === "registration";

@@ -20,7 +20,7 @@
 - `players.team` กับ `team_events` ต้องอัปเดตใน statement หรือ transaction เดียวกันเสมอ
 - API ของผู้เล่นห้ามส่งจำนวนคนของทีม
 - ไม่มี web font ไม่มีรูปภาพ ข้อความในแอปเป็นภาษาไทย ตัวใหญ่ ขั้นตอนน้อย
-- Admin และ results API ตรวจ token จาก header `x-admin-token` ทุก route ตัวหน้า `/a/[token]` กับ `/r/[token]` ไม่ตรวจเอง
+- หน้า `/admin` กับ `/results` เป็น static ไม่ตรวจสิทธิ์เอง ทุก admin และ results API เรียก `rejectUnlessAdmin` ซึ่งเปิดให้หมดถ้าไม่ตั้ง `ADMIN_PIN`
 - setState ใน effect ต้องอยู่ใน callback ของ promise หรือ event (lint `react-hooks/set-state-in-effect`)
 
 ## คำสั่ง

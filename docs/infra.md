@@ -19,7 +19,7 @@
 
 ## ข้อจำกัดของ free tier ที่ต้องจัดการ
 
-- **Supabase Free ไม่มี backup และไม่มี point-in-time recovery** จึงเพิ่ม `GET /api/admin/export` (players + team_events เป็น JSON, ใช้ `x-admin-token`) กดเก็บทุกเย็นและก่อนประกาศผล
+- **Supabase Free ไม่มี backup และไม่มี point-in-time recovery** จึงเพิ่ม `GET /api/admin/export` (players + team_events เป็น JSON กดได้จากหน้า `/admin`) กดเก็บทุกเย็นและก่อนประกาศผล
 - **Project pause ถ้าไม่มี activity 7 วัน**: เช็ก dashboard วันก่อนค่าย ถ้า pause ให้กด restore
 - Supabase Free จำกัด 2 active projects
 - Vercel Hobby เก็บ runtime log 1 ชั่วโมง ใช้หน้า Log ใน admin เป็นหลักฐานหลัก
@@ -32,7 +32,7 @@
 
 ## Env
 
-`DATABASE_URL` (pooler 6543), `LINE_CHANNEL_ID`, `NEXT_PUBLIC_LIFF_ID`, `SESSION_SECRET`, `ADMIN_TOKEN`, `RESULTS_TOKEN`
+`DATABASE_URL` (pooler 6543), `LINE_CHANNEL_ID`, `NEXT_PUBLIC_LIFF_ID`, `SESSION_SECRET` และ `ADMIN_PIN` (ไม่บังคับ)
 
 ## แผนสำรอง
 

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { AdminEvent, AdminOverview, Counts } from "@/lib/admin";
-import { STATUS_LABEL, TeamIcon, teamName, type Team } from "../../ui/teams";
-import { formatCountdown, useClockSeconds } from "../../ui/use-clock";
+import { PinForm, adminPin, pinHeaders } from "../ui/admin-pin";
+import { STATUS_LABEL, TeamIcon, teamName, type Team } from "../ui/teams";
+import { formatCountdown, useClockSeconds } from "../ui/use-clock";
 import styles from "./admin.module.css";
 
 type Load =
@@ -29,24 +30,25 @@ function Pill({ team }: { team: Team | null }) {
   return <span className={`${styles.pill} ${styles[`pill_${team ?? "none"}`]}`}>{teamName(team)}</span>;
 }
 
-export default function AdminClient({ token }: { token: string }) {
+export default function AdminClient() {
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [applyCooldown, setApplyCooldown] = useState(true);
   const [startWarning, setStartWarning] = useState<Counts | null>(null);
   const [resetAsk, setResetAsk] = useState(false);
+  const [pinTried, setPinTried] = useState(false);
   const clock = useClockSeconds();
 
   const call = useCallback(
     (path: string, body?: object) =>
       fetch(path, {
         method: body ? "POST" : "GET",
-        headers: { "x-admin-token": token, ...(body ? { "Content-Type": "application/json" } : {}) },
+        headers: { ...pinHeaders(), ...(body ? { "Content-Type": "application/json" } : {}) },
         body: body ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(10_000),
       }),
-    [token],
+    [],
   );
 
   const fetchAll = useCallback(async (): Promise<Load | null> => {
@@ -150,7 +152,18 @@ export default function AdminClient({ token }: { token: string }) {
     }
   }
 
-  if (load.kind === "unauthorized") return <main className={styles.blank}>ไม่พบหน้านี้</main>;
+  if (load.kind === "unauthorized") {
+    return (
+      <PinForm
+        wrong={pinTried}
+        onSubmit={(pin) => {
+          adminPin.set(pin);
+          setPinTried(true);
+          reload();
+        }}
+      />
+    );
+  }
   if (load.kind === "loading") return <main className={styles.blank}>{message ?? "กำลังโหลด…"}</main>;
 
   const { overview, events, offsetMs } = load;

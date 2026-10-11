@@ -1,11 +1,11 @@
 import { gameAction } from "@/lib/admin";
-import { rejectUnlessToken } from "@/lib/admin-auth";
+import { rejectUnlessAdmin } from "@/lib/admin-auth";
 import { readJson, serverError } from "@/lib/http";
 
 // POST /api/admin/game  body { action: 'start' | 'pause' | 'resume', force? }
 // start ตอบ 409 seed_mismatch พร้อมจำนวน ถ้าขนมปังไม่เท่ากับ 5 หรือปลาไม่เท่ากับ 2 และไม่ได้ส่ง force
 export async function POST(request: Request) {
-  const denied = rejectUnlessToken(request, "ADMIN_TOKEN");
+  const denied = rejectUnlessAdmin(request);
   if (denied) return denied;
 
   const body = await readJson<{ action: unknown; force: unknown }>(request);

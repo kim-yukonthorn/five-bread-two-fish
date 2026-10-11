@@ -150,8 +150,8 @@ SELECT old_team, team, cooldown_until FROM moved;
 | Path | ใคร | หมายเหตุ |
 |---|---|---|
 | `/` | ผู้เล่น | ทีมของฉัน + ปุ่มเปลี่ยนทีม (LIFF endpoint) |
-| `/a/[token]` | admin | ไม่มีลิงก์จากหน้าอื่น, `noindex` |
-| `/r/[token]` | จอประกาศผล | ไม่มีลิงก์จากหน้าอื่น, `noindex` |
+| `/admin` | admin | ไม่มีลิงก์จากหน้าอื่น, `noindex` |
+| `/results` | จอประกาศผล | ไม่มีลิงก์จากหน้าอื่น, `noindex` |
 
 API
 
@@ -170,7 +170,7 @@ API
 | `GET /api/results` | ก่อนเปิดเผย ตอบแค่ `{ status }` ไม่ส่งตัวเลข |
 | `POST /api/results/reveal` | ตั้ง `finished` + `finished_at` แล้วตอบ timeline ทั้งก้อน |
 
-Admin และ results API รับ token ทาง header `x-admin-token` เทียบกับ `ADMIN_TOKEN` / `RESULTS_TOKEN` ใน env (สุ่มยาว 32 ตัวขึ้นไป แยกกันสองตัว เพราะ URL ประกาศผลจะขึ้นจอ)
+Admin และ results API เปิดใช้ได้เลยถ้าไม่ตั้ง `ADMIN_PIN` ใน env ถ้าตั้งไว้ ต้องส่ง PIN ทาง header `x-admin-pin` (หน้าเว็บถามหนึ่งครั้งแล้วจำไว้ในเครื่อง) ใช้ PIN เดียวกันทั้งสองหน้า
 
 `/api/me` และ `/api/switch` **ไม่ส่งจำนวนคนของทีม** เพื่อไม่ให้ผู้เล่นรู้ผลก่อน
 
@@ -218,7 +218,7 @@ Gauge มีสามช่วง: ขนมปัง (ซ้าย) | ยัง
 
 | ข้อ | ค่าที่ใช้ | แก้ที่ |
 |---|---|---|
-| เสมอ | ประกาศว่าเสมอ | หน้า `/r` |
+| เสมอ | ประกาศว่าเสมอ | หน้า `/results` |
 | Cooldown ครั้งแรกที่ได้ทีม | ติด 1 ชั่วโมงเหมือนกัน | query ข้อ 4 |
 | Cooldown | นับตามเวลาจริง ไม่หยุดนับตอน pause | query ข้อ 4 |
 | Admin เปลี่ยนแทน | ติด cooldown, ติ๊กออกได้ตอนแก้กดผิด | `applyCooldown` |
@@ -244,5 +244,6 @@ Gauge มีสามช่วง: ขนมปัง (ซ้าย) | ยัง
 | Timeline (ข้อ 8) | `created_at, kind, bread, fish, none` | เพิ่มชื่อผู้เล่น ทีมต้นทาง ทีมปลายทาง และเลขวัน (ตัดวันตามเวลาไทย) | ใช้ขึ้นข้อความ recap และป้ายวันที่บนจอ |
 | Schema (ข้อ 2) | ไม่มี RLS | เปิด RLS ทุกตารางโดยไม่มี policy | ปิด REST API อัตโนมัติของ Supabase |
 | `/api/me`, `/api/switch` | ไม่มีชื่อ | มี `name` ด้วย | ใช้แสดงบนจอผู้เล่น |
+| หน้า admin และประกาศผล | `/a/[token]`, `/r/[token]` กับ token ยาวสองตัวใน URL | `/admin`, `/results` ไม่มี token มี `ADMIN_PIN` แบบไม่บังคับ | Kim ตัดสินใจว่าไม่ต้องลับขนาดนั้น จำ URL ง่ายกว่า |
 
 ทดสอบด้วย `npm run loadtest` บน Postgres 16: ลงทะเบียน 100 request พร้อมกัน, กดเปลี่ยนทีมรัว 20 ครั้งได้ event เดียว, switch รอการพักเกมที่ยังไม่ commit, timeline ตรงกับตาราง `players`

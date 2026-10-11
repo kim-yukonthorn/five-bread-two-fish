@@ -30,10 +30,10 @@ Web app เบาๆ เปิดผ่าน LINE (LIFF) ไม่ต้อง�
 | Path | ใคร | ทำอะไร |
 |---|---|---|
 | `/` | ผู้เล่น | ทีมของฉัน ปุ่มเปลี่ยนทีม นับถอยหลัง cooldown ผู้เล่นไม่เห็นจำนวนคนของแต่ละทีม |
-| `/a/<ADMIN_TOKEN>` | admin | จำนวนคน รายชื่อ ย้ายทีมแทน เพิ่มคนไม่มี LINE log เริ่ม/พักเกม export ล้างข้อมูล |
-| `/r/<RESULTS_TOKEN>` | จอประกาศผล | กดเริ่มแล้ว lock เกม เล่น recap เป็น gauge ทีละ event แล้วประกาศทีมที่ชนะ |
+| `/admin` | admin | จำนวนคน รายชื่อ ย้ายทีมแทน เพิ่มคนไม่มี LINE log เริ่ม/พักเกม export ล้างข้อมูล |
+| `/results` | จอประกาศผล | กดเริ่มแล้ว lock เกม เล่น recap เป็น gauge ทีละ event แล้วประกาศทีมที่ชนะ |
 
-สองหน้าหลังไม่มีลิงก์จากหน้าอื่น เข้าได้ด้วย URL ที่มี token เท่านั้น การกดเริ่มในหน้าประกาศผลจบเกมทันทีและย้อนกลับไม่ได้ อย่าเปิดหน้านี้เล่นระหว่างเกม
+สองหน้าหลังไม่มีลิงก์จากหน้าอื่น แต่ใครพิมพ์ URL ก็เข้าได้ ถ้าอยากกันไว้ให้ตั้ง `ADMIN_PIN` แล้วหน้าจะถาม PIN หนึ่งครั้งต่อเครื่อง การกดเริ่มในหน้าประกาศผลจบเกมทันทีและย้อนกลับไม่ได้ อย่าเปิดหน้านี้เล่นระหว่างเกม
 
 ## Stack
 
@@ -67,7 +67,7 @@ Schema เปิด RLS ทุกตารางโดยไม่มี policy 
 | `LINE_CHANNEL_ID` | ตรวจ ID token ฝั่ง server |
 | `NEXT_PUBLIC_LIFF_ID` | `liff.init()` ฝั่ง client |
 | `SESSION_SECRET` | เซ็น session cookie ต้องยาว 32 ตัวขึ้นไป |
-| `ADMIN_TOKEN`, `RESULTS_TOKEN` | token ใน URL ของหน้า admin และหน้าประกาศผล ยาว 32 ตัวขึ้นไป สุ่มแยกกันสองตัว |
+| `ADMIN_PIN` | ไม่บังคับ PIN ของหน้า `/admin` และ `/results` ถ้าไม่ตั้ง ทุกคนที่รู้ URL เข้าได้ |
 | `NEXT_PUBLIC_DEV_FAKE_LOGIN` | ตั้งเป็น `1` เพื่อ login ปลอมตอนพัฒนา ไม่มีผลบน Vercel |
 
 ### 4. Vercel
@@ -97,8 +97,8 @@ npm run dev        # http://localhost:3000
 app/
   page.tsx, my-team.tsx     หน้าผู้เล่น (LIFF endpoint)
   me-store.ts               cache สถานะล่าสุดใน localStorage
-  a/[token]/                หน้า admin
-  r/[token]/                หน้าประกาศผล
+  admin/                    หน้า admin
+  results/                  หน้าประกาศผล
   ui/                       ชื่อทีม ไอคอน และนาฬิกานับถอยหลัง
   api/session, api/me       เข้าระบบ และสถานะของฉัน
   api/switch                เปลี่ยนทีม
@@ -111,7 +111,7 @@ lib/
   admin.ts                  งานฝั่ง admin ทั้งหมด
   results.ts                ประกาศผลและ timeline
   session.ts, line.ts       session cookie และตรวจ ID token กับ LINE
-  admin-auth.ts             ตรวจ token ของ admin และหน้าประกาศผล
+  admin-auth.ts             ตรวจ PIN ของหน้า admin และหน้าประกาศผล (ถ้าตั้งไว้)
 db/schema.sql
 scripts/load-test.ts
 docs/
