@@ -164,8 +164,9 @@ API
 | `GET /api/admin/events` | log การเปลี่ยนทีม |
 | `POST /api/admin/players` | เพิ่มคนไม่มี LINE |
 | `POST /api/admin/players/[id]/move` | `{ to: 'bread' \| 'fish' \| null, applyCooldown }` บันทึกเป็น `admin_move` |
-| `POST /api/admin/game` | `{ action: 'start' \| 'pause' \| 'resume' }` |
-| `POST /api/admin/reset` | ล้าง players + events, `next_seq = 1`, สุ่ม `assign_seed` ใหม่ ใช้ได้เฉพาะสถานะ `registration` |
+| `POST /api/admin/game` | `{ action: 'start' \| 'pause' \| 'resume', force? }` ถ้า `start` แล้วไม่ใช่ 5 กับ 2 ตอบ 409 `seed_mismatch` จนกว่าจะส่ง `force` |
+| `POST /api/admin/reset` | ล้าง players + events, `next_seq = 1`, สุ่ม `assign_seed` ใหม่ กลับเป็น `registration` ใช้ได้ตอน `registration` และ `finished` |
+| `GET /api/admin/export` | players + team_events ทั้งหมดเป็น JSON สำหรับเก็บสำรอง |
 | `GET /api/results` | ก่อนเปิดเผย ตอบแค่ `{ status }` ไม่ส่งตัวเลข |
 | `POST /api/results/reveal` | ตั้ง `finished` + `finished_at` แล้วตอบ timeline ทั้งก้อน |
 
@@ -229,3 +230,19 @@ Gauge มีสามช่วง: ขนมปัง (ซ้าย) | ยัง
 3. หน้า admin (จำนวน, เริ่ม/พักเกม, เปลี่ยนแทน, เพิ่มคน, log, ล้างข้อมูล)
 4. หน้าประกาศผล
 5. ทดสอบบนมือถือจริงผ่าน LINE ทั้ง iOS และ Android และลองกับเน็ตช้า (throttle) แล้วล้างข้อมูลก่อนวันค่าย
+
+## 11. จุดที่โค้ดจริงต่างจากเอกสารนี้
+
+บันทึกหลังทำขั้น 0–4 เสร็จ (11 ต.ค. 2026) โค้ดเป็นตัวจริง ถ้าข้อไหนขัดกันให้ยึดโค้ด
+
+| เรื่อง | ในเอกสาร | ในโค้ด | เหตุผล |
+|---|---|---|---|
+| Query เปลี่ยนทีม (ข้อ 4) | เช็ก `status = 'running'` ด้วย `EXISTS` | join `game_state` แล้ว lock แบบ `FOR SHARE` | การพักเกมและประกาศผลจะรอ switch ที่ค้างอยู่ให้จบก่อน ผลจึงไม่ขยับหลัง lock |
+| ลงทะเบียน (ข้อ 3) | lock `game_state` ก่อนเสมอ | คนที่เคยลงทะเบียนแล้วอัปเดตชื่อโดยไม่แตะ lock คนใหม่ยัง lock แล้วเช็กซ้ำตามเดิม | เปิดแอปซ้ำไม่ต้องเข้าคิว และไม่ถือ lock สองตัวสลับลำดับกับ switch |
+| ล้างข้อมูล (ข้อ 6) | เฉพาะ `registration` | `registration` และ `finished` | ทดสอบครบรอบถึงประกาศผลแล้วต้องล้างได้ ไม่งั้นติดอยู่ที่ `finished` |
+| Admin ย้ายโดยไม่ติด cooldown | ไม่ได้ระบุ | ล้าง cooldown เดิมของคนนั้นด้วย | ใช้แก้กดผิด คนที่กดผิดไม่ควรติด cooldown ต่อ |
+| Timeline (ข้อ 8) | `created_at, kind, bread, fish, none` | เพิ่มชื่อผู้เล่น ทีมต้นทาง ทีมปลายทาง และเลขวัน (ตัดวันตามเวลาไทย) | ใช้ขึ้นข้อความ recap และป้ายวันที่บนจอ |
+| Schema (ข้อ 2) | ไม่มี RLS | เปิด RLS ทุกตารางโดยไม่มี policy | ปิด REST API อัตโนมัติของ Supabase |
+| `/api/me`, `/api/switch` | ไม่มีชื่อ | มี `name` ด้วย | ใช้แสดงบนจอผู้เล่น |
+
+ทดสอบด้วย `npm run loadtest` บน Postgres 16: ลงทะเบียน 100 request พร้อมกัน, กดเปลี่ยนทีมรัว 20 ครั้งได้ event เดียว, switch รอการพักเกมที่ยังไม่ commit, timeline ตรงกับตาราง `players`

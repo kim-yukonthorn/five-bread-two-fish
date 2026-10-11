@@ -10,8 +10,9 @@
 
 ## สถานะ
 
-- ขั้น 0–1 เสร็จ: scaffold, schema, `assignTeam`, session/register, `/api/me`, load test
-- ถัดไป ขั้น 2: หน้าทีมของฉัน (สามสถานะ) + `POST /api/switch` + cooldown
+- ขั้น 0–4 เสร็จ: ลงทะเบียน, จอผู้เล่น + เปลี่ยนทีม + cooldown, หน้า admin + export, หน้าประกาศผล
+- เหลือขั้น 5: ทดสอบบนมือถือจริงผ่าน LINE (iOS + Android) กับเน็ตช้า แล้วล้างข้อมูลก่อนวันค่าย
+- จุดที่โค้ดต่างจากเอกสารอยู่ใน `docs/tech-design.md` ข้อ 11
 
 ## ข้อตกลงในโค้ด
 
@@ -19,9 +20,11 @@
 - `players.team` กับ `team_events` ต้องอัปเดตใน statement หรือ transaction เดียวกันเสมอ
 - API ของผู้เล่นห้ามส่งจำนวนคนของทีม
 - ไม่มี web font ไม่มีรูปภาพ ข้อความในแอปเป็นภาษาไทย ตัวใหญ่ ขั้นตอนน้อย
+- Admin และ results API ตรวจ token จาก header `x-admin-token` ทุก route ตัวหน้า `/a/[token]` กับ `/r/[token]` ไม่ตรวจเอง
+- setState ใน effect ต้องอยู่ใน callback ของ promise หรือ event (lint `react-hooks/set-state-in-effect`)
 
 ## คำสั่ง
 
 - `npm run dev` / `npm run build` / `npm run lint`
 - `npm test` unit test (`assignTeam`, session)
-- `npm run loadtest` ยิงลงทะเบียน 50 คนพร้อมกันบน DB ใน `.env.local` (ต้องเป็น DB ว่าง)
+- `npm run loadtest` เล่นเกมจำลองแบบยิงพร้อมกันบน DB ใน `.env.local` ตั้งแต่ลงทะเบียนถึงประกาศผล (ต้องเป็น DB ว่าง และล้างให้เองเมื่อจบ)

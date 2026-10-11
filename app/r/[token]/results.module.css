@@ -1,0 +1,253 @@
+/* หน้าประกาศผล: ใช้ขึ้นจอใหญ่ ตัวเลขต้องอ่านได้จากหลังห้อง */
+
+.page {
+  min-height: 100dvh;
+  background: var(--bg);
+  padding: clamp(16px, 3vw, 40px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.blank {
+  color: var(--muted);
+}
+
+.stage {
+  width: 100%;
+  max-width: 1200px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: clamp(20px, 4vw, 48px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 2vw, 24px);
+  min-width: 0;
+}
+
+.pre {
+  align-items: center;
+  text-align: center;
+  padding-block: clamp(48px, 12vh, 140px);
+}
+
+.pre h1 {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 4rem);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.pre p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 44ch;
+}
+
+.error {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.startButton {
+  font: inherit;
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 800;
+  padding: 16px 64px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--ink);
+  color: var(--surface);
+  cursor: pointer;
+}
+
+.startButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.day {
+  font-size: clamp(1.3rem, 2.6vw, 2rem);
+  font-weight: 700;
+}
+
+.ticker {
+  flex: 1 1 14ch;
+  min-width: 0;
+  min-height: 1.6em;
+  text-align: right;
+  color: var(--muted);
+  font-size: clamp(1rem, 1.8vw, 1.4rem);
+}
+
+.score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.side span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: clamp(1rem, 2.2vw, 1.8rem);
+}
+
+.side b {
+  font-size: clamp(3.5rem, 14vw, 10rem);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.side_bread {
+  color: var(--bread-deep);
+  --cut: var(--surface);
+}
+
+.side_fish {
+  color: var(--fish-deep);
+  --cut: var(--surface);
+  align-items: flex-end;
+}
+
+.side_none {
+  color: var(--muted);
+  align-items: center;
+}
+
+.side_none span {
+  font-size: clamp(0.85rem, 1.4vw, 1.1rem);
+  font-weight: 600;
+}
+
+.side_none b {
+  font-size: clamp(1.4rem, 4vw, 3rem);
+  font-weight: 600;
+}
+
+.icon {
+  width: 1.3em;
+  height: 1.3em;
+  flex: none;
+}
+
+.gauge {
+  position: relative;
+  display: flex;
+  height: clamp(48px, 8vw, 88px);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--none-soft);
+}
+
+.gauge div {
+  flex: 0 1 0;
+  min-width: 0;
+  transition: flex-grow 0.35s linear;
+}
+
+.gaugeBread {
+  background: var(--bread);
+}
+
+.gaugeNone {
+  background: var(--none-soft);
+}
+
+.gaugeFish {
+  background: var(--fish);
+}
+
+.gauge i {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+  opacity: 0.55;
+}
+
+.river {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+}
+
+.verdict {
+  border-radius: 18px;
+  padding: clamp(16px, 3vw, 32px);
+  text-align: center;
+}
+
+.verdict h2 {
+  margin: 0;
+  font-size: clamp(2.2rem, 8vw, 5.5rem);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.verdict p {
+  margin: 0;
+  font-size: clamp(1rem, 2vw, 1.5rem);
+}
+
+.verdict_bread {
+  background: var(--bread);
+  color: var(--on-bread);
+}
+
+.verdict_fish {
+  background: var(--fish);
+  color: var(--on-fish);
+}
+
+.verdict_tie {
+  background: var(--sunk);
+  color: var(--ink);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  min-height: 2.4em;
+}
+
+.button {
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 16px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gauge div {
+    transition: none;
+  }
+}
