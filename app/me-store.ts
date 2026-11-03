@@ -2,6 +2,8 @@ import type { GameStatus, Team } from "./ui/teams";
 
 export type Me = {
   name: string;
+  /** ไม่มีใน cache รุ่นก่อนเพิ่มเลขผู้เล่น จนกว่าจะได้ response ใหม่ */
+  seq?: number;
   team: Team | null;
   cooldownUntil: string | null;
   gameStatus: GameStatus;

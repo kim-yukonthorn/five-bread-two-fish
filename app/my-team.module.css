@@ -132,6 +132,50 @@
   --cut: var(--fish);
 }
 
+/* ปุ่มเดียวบนจอหลัก สีเข้มเห็นชัดทั้งบนพื้นขนมปัง ปลา และพื้นขาว */
+.prayedFor {
+  width: 100%;
+  min-height: 80px;
+  border: 0;
+  border-radius: 18px;
+  padding: 16px 12px;
+  font: inherit;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.3;
+  background: var(--ink);
+  color: var(--surface);
+  cursor: pointer;
+}
+
+.prayedFor:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* เลขผู้เล่นตัวใหญ่ ให้หันจอให้คนที่อธิษฐานเผื่อดูแล้วพิมพ์ตาม */
+.myNumber {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  border-radius: 14px;
+  padding: 4px 18px;
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.myNumber span {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.myNumber b {
+  font-size: 3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
 .joinIcon {
   width: 2.2em;
   height: 2.2em;
@@ -234,4 +278,106 @@
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
+}
+
+/* ค้นหาคนที่อธิษฐานเผื่อ: sheet สูงคงที่ คีย์บอร์ดเด้งขึ้นแล้วรายชื่อไม่กระโดด */
+.pickerSheet {
+  max-height: 92dvh;
+  min-height: 60dvh;
+  align-self: flex-start;
+  margin-top: 4dvh;
+  border-radius: 22px;
+}
+
+.search {
+  width: 100%;
+  font: inherit;
+  font-size: 1.5rem;
+  padding: 14px 16px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+}
+
+.search:focus {
+  outline: 3px solid var(--fish);
+  outline-offset: 1px;
+}
+
+.results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 68px;
+  border: 2px solid var(--line);
+  border-left-width: 8px;
+  border-radius: 14px;
+  padding: 8px 12px;
+  font: inherit;
+  text-align: left;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.person_bread {
+  border-left-color: var(--bread);
+}
+
+.person_fish {
+  border-left-color: var(--fish);
+}
+
+.personName {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.personMeta {
+  flex: none;
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-align: right;
+}
+
+.avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--sunk);
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.bigAvatar {
+  align-self: center;
+}
+
+.sheetRule {
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--sunk);
+}
+
+.sheet .sheetError {
+  color: var(--danger);
+  font-weight: 700;
 }

@@ -49,6 +49,7 @@ CREATE TABLE team_events (
   player_id  uuid NOT NULL REFERENCES players(id),
   from_team  team,                        -- NULL = ยังไม่มีทีม
   to_team    team,                        -- NULL = ยังไม่มีทีม
+  by_player_id uuid REFERENCES players(id), -- คนที่อธิษฐานเผื่อ (switch เท่านั้น) ใช้ทำอันดับตอนประกาศผล
   kind       event_kind NOT NULL,         -- join = ลงทะเบียน
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -56,6 +57,8 @@ CREATE INDEX team_events_time ON team_events (created_at, id);
 ```
 
 `players.team` คือสถานะปัจจุบัน ส่วน `team_events` คือประวัติสำหรับ recap ทั้งสองอัปเดตใน statement/transaction เดียวกันเสมอ
+
+`players.seq` เป็น "เลขของฉัน" บนจอผู้เล่นด้วย DB ที่สร้างก่อนมี `by_player_id` ให้รัน `db/migrations/001-by-player.sql`
 
 ## 3. ทีมเริ่มต้นตอนลงทะเบียน
 
@@ -102,29 +105,31 @@ Admin เพิ่มคนไม่มี LINE ใช้ transaction เดี�
 
 ## 4. เปลี่ยนทีม
 
-Client ส่งทีมปลายทาง (`$2`) มาเสมอ ทั้งคนที่ยังไม่มีทีมและคนที่ย้ายข้ามทีม Statement เดียว atomic:
+Client ส่ง id ของคนที่อธิษฐานเผื่อ (`$2`) กับทีมที่ผู้เล่นเห็นบนจอยืนยัน (`$3`) คนอธิษฐานต้องไม่ใช่ตัวเอง ยังอยู่ทีม `$3` และอยู่คนละทีมกับผู้เล่น ถ้าคนอธิษฐานย้ายทีมไประหว่างที่เลือก จะไม่ย้ายผู้เล่นไปทีมที่เขาไม่ได้ยืนยัน Statement เดียว atomic (โค้ดจริงใน `lib/players.ts` lock `game_state` แบบ `FOR SHARE` ด้วย ดูข้อ 11):
 
 ```sql
 WITH moved AS (
   UPDATE players p
-     SET team = $2::team,
+     SET team = b.team,
          cooldown_until = now() + interval '20 minutes'
-    FROM (SELECT id, team AS old_team FROM players WHERE id = $1 FOR UPDATE) o
+    FROM (SELECT id, team AS old_team FROM players WHERE id = $1 FOR UPDATE) o,
+         (SELECT id, team FROM players WHERE id = $2 AND id <> $1 AND team = $3::team) b
    WHERE p.id = o.id
-     AND p.team IS DISTINCT FROM $2::team
+     AND p.team IS DISTINCT FROM b.team
      AND (p.cooldown_until IS NULL OR p.cooldown_until <= now())
      AND EXISTS (SELECT 1 FROM game_state WHERE status = 'running')
-  RETURNING p.id, o.old_team, p.team, p.cooldown_until
+  RETURNING p.id, o.old_team, p.team, p.cooldown_until, b.id AS by_id
 ), ev AS (
-  INSERT INTO team_events (player_id, from_team, to_team, kind)
-  SELECT id, old_team, team, 'switch' FROM moved
+  INSERT INTO team_events (player_id, from_team, to_team, kind, by_player_id)
+  SELECT id, old_team, team, 'switch', by_id FROM moved
   RETURNING 1
 )
 SELECT old_team, team, cooldown_until FROM moved;
 ```
 
-- ได้ 1 แถว = เปลี่ยนสำเร็จ, 0 แถว = อยู่ทีมนั้นอยู่แล้ว, ติด cooldown หรือเกมไม่ได้อยู่สถานะ `running`
-- **กดซ้ำตอนเน็ตหลุดไม่มีผล**: ถ้า server เปลี่ยนแล้วแต่ response ไม่ถึงมือถือ การส่งซ้ำด้วยทีมปลายทางเดิมได้ 0 แถว ดังนั้นกรณี 0 แถว API ต้องตอบสถานะปัจจุบันกลับไปเสมอ แล้ว client แสดงตามนั้น
+- ได้ 1 แถว = เปลี่ยนสำเร็จ, 0 แถว = คนอธิษฐานใช้ไม่ได้หรืออยู่ทีมเดียวกัน, ติด cooldown หรือเกมไม่ได้อยู่สถานะ `running`
+- แถวของคนอธิษฐานอ่านโดยไม่ lock: ถ้าสองคนอธิษฐานเผื่อกันแล้วกดพร้อมกันจะไม่ deadlock
+- **กดซ้ำตอนเน็ตหลุดไม่มีผล**: ถ้า server เปลี่ยนแล้วแต่ response ไม่ถึงมือถือ การส่งซ้ำด้วยคนอธิษฐานคนเดิมได้ 0 แถว ดังนั้นกรณี 0 แถว API ต้องตอบสถานะปัจจุบันกลับไปเสมอ แล้ว client แสดงตามนั้น
 
 ## 5. Identity (LIFF)
 
@@ -158,8 +163,9 @@ API
 | Method + Path | ทำอะไร |
 |---|---|
 | `POST /api/session` | verify ID token, ลงทะเบียนถ้ายังไม่มี, ออก cookie |
-| `GET /api/me` | `{ team, cooldownUntil, gameStatus, serverTime }` โดย `team` เป็น `'bread' \| 'fish' \| null` |
-| `POST /api/switch` | body `{ to: 'bread' \| 'fish' }` ตอบ `{ moved, team, cooldownUntil, gameStatus, serverTime }` |
+| `GET /api/me` | `{ seq, team, cooldownUntil, gameStatus, serverTime }` โดย `team` เป็น `'bread' \| 'fish' \| null` |
+| `GET /api/prayers?q=` | ค้นคนที่อธิษฐานเผื่อด้วยเลขผู้เล่น (ตรงตัว) หรือชื่อ LINE บางส่วน เฉพาะคนที่มีทีมและไม่ใช่ทีมเดียวกับผู้ค้น ไม่รวมตัวเอง ไม่เกิน 8 คน ไม่มีคำค้นได้รายการว่าง ตอบ `{ players: [{ id, name, seq, pictureUrl, team }] }` |
+| `POST /api/switch` | body `{ by: <id คนอธิษฐาน>, to: ทีมของคนนั้นที่เห็นบนจอยืนยัน }` ตอบ `{ moved, seq, team, cooldownUntil, gameStatus, serverTime }` |
 | `GET /api/admin/overview` | จำนวนขนมปัง / ปลา / ยังไม่มีทีม, รายชื่อ, สถานะเกม |
 | `GET /api/admin/events` | log การเปลี่ยนทีม |
 | `POST /api/admin/players` | เพิ่มคนไม่มี LINE |
@@ -172,7 +178,7 @@ API
 
 Admin และ results API เปิดใช้ได้เลยถ้าไม่ตั้ง `ADMIN_PIN` ใน env ถ้าตั้งไว้ ต้องส่ง PIN ทาง header `x-admin-pin` (หน้าเว็บถามหนึ่งครั้งแล้วจำไว้ในเครื่อง) ใช้ PIN เดียวกันทั้งสองหน้า
 
-`/api/me` และ `/api/switch` **ไม่ส่งจำนวนคนของทีม** เพื่อไม่ให้ผู้เล่นรู้ผลก่อน
+`/api/me`, `/api/prayers` และ `/api/switch` **ไม่ส่งจำนวนคนของทีม** เพื่อไม่ให้ผู้เล่นรู้ผลก่อน `/api/prayers` จึงไม่มีรายชื่อทั้งทีมให้ดูล่วงหน้า ต้องพิมพ์ก่อนและได้ไม่เกิน 8 คน
 
 `start` ควรเตือนถ้าขนมปังไม่เท่ากับ 5 หรือปลาไม่เท่ากับ 2 (เช่น ลงทะเบียนไม่ถึง 7 คน หรือ admin ย้ายผิด)
 
@@ -209,6 +215,8 @@ ORDER BY created_at, id;
 - ผลสุดท้ายคือแถวสุดท้ายของ timeline (ตรงกับตาราง `players` ทดสอบแล้ว)
 - `reveal` กดซ้ำได้: ถ้า `finished` แล้วไม่แก้ `finished_at` แค่ตอบ timeline เดิม (เผื่อ refresh จอ)
 - Client รับ timeline ทั้งก้อนก่อน แล้วค่อยเล่น animation จึงไม่พึ่งเน็ตระหว่างเล่น
+
+`reveal` ตอบ `ranking` ด้วย: คนที่พาคนอื่นย้ายทีมได้มากสุดไม่เกิน 3 คน นับจาก event `switch` ที่มี `by_player_id` ไม่มีตัวนับแยก (`admin_move` ไม่มีคนอธิษฐานจึงไม่นับ) เสมอกันให้คนที่ทำถึงจำนวนนั้นก่อน (`max(created_at)` น้อยกว่า) อยู่สูงกว่า จอแสดงหลังผลทีม เปิดทีละอันดับจากล่างขึ้นบนตามจังหวะคนกด
 
 Gauge มีสามช่วง: ขนมปัง (ซ้าย) | ยังไม่มีทีม (กลาง) | ปลา (ขวา) ความกว้างตามสัดส่วนของ `bread / none / fish`
 

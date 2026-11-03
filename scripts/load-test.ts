@@ -11,7 +11,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
   const { getPool } = await import("../lib/db");
-  const { registerPlayer, switchTeam } = await import("../lib/players");
+  const { registerPlayer, searchPrayers, switchTeam } = await import("../lib/players");
   const { adminMove, gameAction, getOverview, resetGame } = await import("../lib/admin");
   const { reveal } = await import("../lib/results");
   const pool = getPool();
@@ -67,35 +67,58 @@ async function main() {
   console.log("\n[2] เปลี่ยนทีม");
   const unassigned = players.rows.filter((r) => r.team === null);
   const first = unassigned[0];
+  const breads = players.rows.filter((r) => r.team === "bread");
+  const fishes = players.rows.filter((r) => r.team === "fish");
+  const breadSeed = breads[0];
+  const fishSeed = fishes[0];
 
-  check((await switchTeam(first.id, "fish")) === false, "เกมยังไม่เริ่ม เปลี่ยนทีมไม่ได้");
+  check((await switchTeam(first.id, fishSeed.id, "fish")) === false, "เกมยังไม่เริ่ม เปลี่ยนทีมไม่ได้");
   const start = await gameAction("start");
   check(start.ok, "เริ่มเกมได้เมื่อขนมปัง 5 ปลา 2");
 
+  // ค้นคนอธิษฐาน: เฉพาะทีมตรงข้าม ไม่รวมตัวเอง ไม่เกิน 8 คน
+  const byNumber = await searchPrayers(first.id, String(fishSeed.seq));
+  check(byNumber.length === 1 && byNumber[0].id === fishSeed.id && byNumber[0].team === "fish", "ค้นด้วยเลขเจอคนนั้นคนเดียว");
+  const byName = await searchPrayers(first.id, "ทดสอบ");
+  check(byName.length === 7, `ยังไม่มีทีมค้นชื่อเจอทั้งสองทีม ${byName.length} คน (ต้องได้ 7)`);
+  const opposite = await searchPrayers(breadSeed.id, "ทดสอบ");
+  check(opposite.every((p) => p.team === "fish") && opposite.length === 2, "คนทีมขนมปังค้นเจอเฉพาะทีมปลา");
+  check((await searchPrayers(breadSeed.id, String(breads[1].seq))).length === 0, "ค้นเลขคนทีมเดียวกันไม่เจอ");
+  check((await searchPrayers(first.id, String(unassigned[1].seq))).length === 0, "ค้นเลขคนที่ยังไม่มีทีมไม่เจอ");
+  check((await searchPrayers(first.id, "  ")).length === 0, "ไม่พิมพ์อะไรไม่ได้รายชื่อ");
+
+  // คนอธิษฐานต้องเป็นคนอื่น มีทีม และอยู่คนละทีม
+  check((await switchTeam(first.id, first.id, "bread")) === false, "ใส่ตัวเองเป็นคนอธิษฐานไม่ได้");
+  check((await switchTeam(first.id, unassigned[1].id, "bread")) === false, "คนที่ยังไม่มีทีมพาเข้าทีมไม่ได้");
+  check((await switchTeam(breads[1].id, breadSeed.id, "bread")) === false, "คนทีมเดียวกันพาย้ายไม่ได้");
+  check((await switchTeam(first.id, fishSeed.id, "bread")) === false, "ทีมที่ยืนยันไม่ตรงกับทีมของคนอธิษฐาน ไม่ย้าย");
+
   // คนเดียวกดรัว 20 ครั้งพร้อมกัน (หรือ retry ตอนเน็ตหลุด) ต้องเปลี่ยนครั้งเดียว
-  const burst = await Promise.all(Array.from({ length: 20 }, () => switchTeam(first.id, "fish")));
+  const burst = await Promise.all(Array.from({ length: 20 }, () => switchTeam(first.id, fishSeed.id, "fish")));
   check(burst.filter(Boolean).length === 1, `กดพร้อมกัน 20 ครั้ง เปลี่ยนสำเร็จ ${burst.filter(Boolean).length} ครั้ง (ต้องได้ 1)`);
   const firstEvents = await pool.query<{ n: number }>(
     "SELECT count(*)::int AS n FROM team_events WHERE player_id = $1 AND kind = 'switch'",
     [first.id],
   );
   check(firstEvents.rows[0].n === 1, `บันทึก event switch ${firstEvents.rows[0].n} แถว (ต้องได้ 1)`);
-  check((await switchTeam(first.id, "bread")) === false, "ติด cooldown 20 นาที ย้ายกลับทันทีไม่ได้");
+  check((await switchTeam(first.id, breadSeed.id, "bread")) === false, "ติด cooldown 20 นาที ย้ายกลับทันทีไม่ได้");
 
   // คนที่เหลือเปลี่ยนทีมพร้อมกันทั้งหมด
   const rest = unassigned.slice(1);
-  const moved = await Promise.all(rest.map((p, i) => switchTeam(p.id, i % 2 ? "bread" : "fish")));
+  const moved = await Promise.all(
+    rest.map((p, i) => (i % 2 ? switchTeam(p.id, breadSeed.id, "bread") : switchTeam(p.id, fishSeed.id, "fish"))),
+  );
   check(moved.every(Boolean), `อีก ${rest.length} คนเปลี่ยนทีมพร้อมกัน สำเร็จ ${moved.filter(Boolean).length} คน`);
 
   // ---------- 3. พักเกมและประกาศผล ----------
   console.log("\n[3] พักเกมและประกาศผล");
   // การพักเกมที่ยังไม่ commit ต้องทำให้ switch ที่เข้ามาทีหลังรอ แล้วไม่ผ่านเมื่อพักสำเร็จ
-  const seed = players.rows.find((r) => r.team === "bread")!;
+  const seed = breads[1];
   const blocker = await pool.connect();
   await blocker.query("BEGIN");
   await blocker.query("UPDATE game_state SET status = 'paused'");
   let settled = false;
-  const waiting = switchTeam(seed.id, "fish").then((result) => {
+  const waiting = switchTeam(seed.id, fishSeed.id, "fish").then((result) => {
     settled = true;
     return result;
   });
@@ -108,7 +131,12 @@ async function main() {
   check((await gameAction("resume")).ok, "เล่นต่อได้");
   check((await adminMove(seed.id, null, false)) === true, "admin คืนผู้เล่นเป็นยังไม่มีทีมได้");
   check((await adminMove(seed.id, "bread", false)) === true, "admin ย้ายกลับโดยไม่ติด cooldown ได้");
-  check((await switchTeam(seed.id, "fish")) === true, "ผู้เล่นคนนั้นเปลี่ยนทีมต่อได้ทันที");
+  check((await switchTeam(seed.id, fishes[1].id, "fish")) === true, "ผู้เล่นคนนั้นเปลี่ยนทีมต่อได้ทันที");
+
+  const unattributed = await pool.query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM team_events WHERE kind = 'switch' AND by_player_id IS NULL",
+  );
+  check(unattributed.rows[0].n === 0, "ทุก event switch มีคนอธิษฐาน");
 
   const timeline = await reveal();
   const overview = await getOverview();
@@ -124,10 +152,22 @@ async function main() {
       last.bread === overview.counts.bread && last.fish === overview.counts.fish && last.none === overview.counts.none,
       `ผลสุดท้ายของ timeline ตรงกับตาราง players (ขนมปัง ${last.bread} ปลา ${last.fish} ยังไม่มีทีม ${last.none})`,
     );
+    // ปลาคนแรกพา first + ครึ่งหนึ่งของ rest ขนมปังคนแรกพาอีกครึ่ง ปลาคนที่สองพา seed
+    const fishCount = 1 + Math.ceil(rest.length / 2);
+    const breadCount = Math.floor(rest.length / 2);
+    const ranking = timeline.ranking.map((r) => `${r.name}:${r.count}`).join(", ");
+    check(
+      timeline.ranking.length === 3 &&
+        timeline.ranking[0].count === fishCount &&
+        timeline.ranking[1].count === breadCount &&
+        timeline.ranking[2].count === 1,
+      `อันดับคนพาย้ายทีม ${ranking} (ต้องได้ ${fishCount}, ${breadCount}, 1)`,
+    );
+    check(timeline.steps.every((s) => (s.kind === "switch") === (s.by !== null)), "timeline บอกชื่อคนอธิษฐานของทุก switch");
     const again = await reveal();
     check(again?.finishedAt === timeline.finishedAt && again.steps.length === timeline.steps.length, "กดประกาศผลซ้ำได้ timeline เดิม");
   }
-  check((await switchTeam(first.id, "bread")) === false, "ประกาศผลแล้ว ผู้เล่นเปลี่ยนทีมไม่ได้");
+  check((await switchTeam(first.id, breadSeed.id, "bread")) === false, "ประกาศผลแล้ว ผู้เล่นเปลี่ยนทีมไม่ได้");
   check((await adminMove(first.id, "bread", false)) === false, "ประกาศผลแล้ว admin ย้ายทีมไม่ได้");
   check((await gameAction("resume")).ok === false, "ประกาศผลแล้ว เปิดเกมต่อไม่ได้");
 

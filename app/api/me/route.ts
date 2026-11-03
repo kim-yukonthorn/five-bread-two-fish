@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { getMe } from "@/lib/players";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
-// GET /api/me: { name, team, cooldownUntil, gameStatus, serverTime } ไม่ส่งจำนวนคนของทีม
+// GET /api/me: { name, seq, team, cooldownUntil, gameStatus, serverTime } ไม่ส่งจำนวนคนของทีม
 export async function GET() {
   const cookieStore = await cookies();
   const playerId = verifySession(cookieStore.get(SESSION_COOKIE)?.value);

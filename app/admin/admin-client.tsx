@@ -313,6 +313,7 @@ export default function AdminClient() {
                     <b>{e.name}</b> {e.kind !== "join" && <Pill team={e.from} />}
                     {e.kind !== "join" && " → "}
                     <Pill team={e.to} /> <span className={styles.kind}>{KIND_LABEL[e.kind]}</span>
+                    {e.by && <span className={styles.kind}> · {e.by} อธิษฐานเผื่อ</span>}
                   </span>
                 </li>
               ))}
