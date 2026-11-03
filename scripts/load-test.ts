@@ -80,7 +80,7 @@ async function main() {
     [first.id],
   );
   check(firstEvents.rows[0].n === 1, `บันทึก event switch ${firstEvents.rows[0].n} แถว (ต้องได้ 1)`);
-  check((await switchTeam(first.id, "bread")) === false, "ติด cooldown 1 ชั่วโมง ย้ายกลับทันทีไม่ได้");
+  check((await switchTeam(first.id, "bread")) === false, "ติด cooldown 20 นาที ย้ายกลับทันทีไม่ได้");
 
   // คนที่เหลือเปลี่ยนทีมพร้อมกันทั้งหมด
   const rest = unassigned.slice(1);

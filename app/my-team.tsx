@@ -253,7 +253,7 @@ export default function MyTeam() {
         <div className={styles.sheetWrap}>
           <div className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="confirm-title">
             <h2 id="confirm-title">เข้าทีม{TEAM[confirmTo].name}?</h2>
-            <p>ยืนยันแล้วเปลี่ยนทีมทันที และเปลี่ยนอีกไม่ได้ 1 ชั่วโมง</p>
+            <p>ยืนยันแล้วเปลี่ยนทีมทันที และเปลี่ยนอีกไม่ได้ 20 นาที</p>
             <button className={`${styles.join} ${styles[`join_${confirmTo}`]}`} disabled={saving} onClick={confirmSwitch}>
               <TeamIcon team={confirmTo} className={styles.joinIcon} />
               <span>{saving ? "กำลังบันทึก…" : `ยืนยัน เข้าทีม${TEAM[confirmTo].name}`}</span>

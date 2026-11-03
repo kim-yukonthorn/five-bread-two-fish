@@ -216,7 +216,7 @@ export default function AdminClient() {
             </h2>
             <label className={styles.check}>
               <input type="checkbox" checked={applyCooldown} onChange={(e) => setApplyCooldown(e.target.checked)} />
-              <span>ย้ายแทนแล้วติด cooldown 1 ชม. เหมือนปกติ (ติ๊กออกเมื่อแก้กดผิด)</span>
+              <span>ย้ายแทนแล้วติด cooldown 20 นาที เหมือนปกติ (ติ๊กออกเมื่อแก้กดผิด)</span>
             </label>
             <ul className={styles.rows}>
               {players.length === 0 && <li className={styles.empty}>ยังไม่มีใครลงทะเบียน</li>}
