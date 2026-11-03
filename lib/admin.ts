@@ -111,7 +111,7 @@ export async function adminMove(playerId: string, to: Team | null, applyCooldown
        UPDATE players p
           SET team = $2::team,
               cooldown_until = CASE WHEN $3::boolean AND $2::team IS NOT NULL
-                                    THEN now() + interval '1 hour' END
+                                    THEN now() + interval '20 minutes' END
          FROM (
            SELECT pl.id, pl.team AS old_team
              FROM players pl CROSS JOIN game_state g

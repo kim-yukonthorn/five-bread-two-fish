@@ -116,7 +116,7 @@ export async function switchTeam(playerId: string, to: Team): Promise<boolean> {
     `WITH moved AS (
        UPDATE players p
           SET team = $2::team,
-              cooldown_until = now() + interval '1 hour'
+              cooldown_until = now() + interval '20 minutes'
          FROM (
            SELECT pl.id, pl.team AS old_team
              FROM players pl CROSS JOIN game_state g

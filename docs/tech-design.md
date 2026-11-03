@@ -108,7 +108,7 @@ Client ส่งทีมปลายทาง (`$2`) มาเสมอ ทั�
 WITH moved AS (
   UPDATE players p
      SET team = $2::team,
-         cooldown_until = now() + interval '1 hour'
+         cooldown_until = now() + interval '20 minutes'
     FROM (SELECT id, team AS old_team FROM players WHERE id = $1 FOR UPDATE) o
    WHERE p.id = o.id
      AND p.team IS DISTINCT FROM $2::team
@@ -219,7 +219,7 @@ Gauge มีสามช่วง: ขนมปัง (ซ้าย) | ยัง
 | ข้อ | ค่าที่ใช้ | แก้ที่ |
 |---|---|---|
 | เสมอ | ประกาศว่าเสมอ | หน้า `/results` |
-| Cooldown ครั้งแรกที่ได้ทีม | ติด 1 ชั่วโมงเหมือนกัน | query ข้อ 4 |
+| Cooldown ครั้งแรกที่ได้ทีม | ติด 20 นาทีเหมือนกัน | query ข้อ 4 |
 | Cooldown | นับตามเวลาจริง ไม่หยุดนับตอน pause | query ข้อ 4 |
 | Admin เปลี่ยนแทน | ติด cooldown, ติ๊กออกได้ตอนแก้กดผิด | `applyCooldown` |
 
