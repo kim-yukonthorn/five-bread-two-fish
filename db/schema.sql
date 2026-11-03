@@ -32,6 +32,7 @@ CREATE TABLE team_events (
   player_id  uuid NOT NULL REFERENCES players(id),
   from_team  team,                        -- NULL = ยังไม่มีทีม
   to_team    team,                        -- NULL = ยังไม่มีทีม
+  by_player_id uuid REFERENCES players(id), -- คนที่อธิษฐานเผื่อ (switch เท่านั้น) ใช้ทำอันดับตอนประกาศผล
   kind       event_kind NOT NULL,         -- join = ลงทะเบียน
   created_at timestamptz NOT NULL DEFAULT now()
 );

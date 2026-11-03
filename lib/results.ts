@@ -12,9 +12,13 @@ export type TimelineStep = TimelineState & {
   day: number;
   kind: "join" | "switch" | "admin_move";
   name: string;
+  /** คนที่อธิษฐานเผื่อ (switch เท่านั้น) */
+  by: string | null;
   from: Team | null;
   to: Team | null;
 };
+
+export type RankEntry = { name: string; pictureUrl: string | null; count: number };
 
 export type Timeline = {
   startedAt: string;
@@ -23,6 +27,8 @@ export type Timeline = {
   init: TimelineState;
   /** ทีละ event หลังเริ่มเกม ผลสุดท้ายคือ step สุดท้าย */
   steps: TimelineStep[];
+  /** คนที่พาคนอื่นย้ายทีมได้มากสุด ไม่เกิน 3 คน อันดับ 1 ก่อน เสมอกันให้คนที่ทำถึงจำนวนนั้นก่อนอยู่สูงกว่า */
+  ranking: RankEntry[];
 };
 
 export async function getStatus(): Promise<GameStatus> {
@@ -53,6 +59,7 @@ export async function reveal(): Promise<Timeline | null> {
     day: number;
     kind: TimelineStep["kind"];
     display_name: string;
+    by_name: string | null;
     from_team: Team | null;
     to_team: Team | null;
     bread: number;
@@ -60,7 +67,7 @@ export async function reveal(): Promise<Timeline | null> {
     total: number;
     before_start: boolean;
   }>(
-    `SELECT e.created_at, e.kind, e.from_team, e.to_team, p.display_name,
+    `SELECT e.created_at, e.kind, e.from_team, e.to_team, p.display_name, b.display_name AS by_name,
             ((e.created_at AT TIME ZONE $1)::date - (g.started_at AT TIME ZONE $1)::date + 1)::int AS day,
             e.created_at <= g.started_at AS before_start,
             (SUM(CASE WHEN e.to_team = 'bread' THEN 1 ELSE 0 END
@@ -70,6 +77,7 @@ export async function reveal(): Promise<Timeline | null> {
             (SUM(CASE WHEN e.kind = 'join' THEN 1 ELSE 0 END) OVER w)::int AS total
        FROM team_events e
        JOIN players p ON p.id = e.player_id
+       LEFT JOIN players b ON b.id = e.by_player_id
       CROSS JOIN game_state g
       WHERE e.created_at <= g.finished_at
      WINDOW w AS (ORDER BY e.created_at, e.id)
@@ -90,6 +98,7 @@ export async function reveal(): Promise<Timeline | null> {
         day: r.day,
         kind: r.kind,
         name: r.display_name,
+        by: r.by_name,
         from: r.from_team,
         to: r.to_team,
       });
@@ -100,5 +109,21 @@ export async function reveal(): Promise<Timeline | null> {
     finishedAt: state.finished_at.toISOString(),
     init,
     steps,
+    ranking: await getRanking(),
   };
+}
+
+/** นับจาก team_events ตรงๆ (ไม่มีตัวนับแยก) admin_move ไม่มีคนอธิษฐานจึงไม่นับ */
+async function getRanking(): Promise<RankEntry[]> {
+  const res = await getPool().query<{ display_name: string; picture_url: string | null; n: number }>(
+    `SELECT b.display_name, b.picture_url, count(*)::int AS n
+       FROM team_events e
+       JOIN players b ON b.id = e.by_player_id
+      CROSS JOIN game_state g
+      WHERE e.kind = 'switch' AND e.created_at <= g.finished_at
+      GROUP BY b.id, b.display_name, b.picture_url, b.seq
+      ORDER BY n DESC, max(e.created_at), b.seq
+      LIMIT 3`,
+  );
+  return res.rows.map((r) => ({ name: r.display_name, pictureUrl: r.picture_url, count: r.n }));
 }

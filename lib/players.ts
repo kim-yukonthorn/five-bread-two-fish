@@ -1,5 +1,6 @@
 import { assignTeam, type Team } from "./assign-team";
 import { getPool, withTransaction } from "./db";
+import { PRAYER_SEARCH_LIMIT, parsePrayerQuery } from "./prayer-search";
 
 export type GameStatus = "registration" | "running" | "paused" | "finished";
 
@@ -14,6 +15,8 @@ export type PlayerRow = {
 /** รูปแบบที่ API ของผู้เล่นตอบ ไม่มีจำนวนคนของทีม เพื่อไม่ให้ผู้เล่นรู้ผลก่อน */
 export type Me = {
   name: string;
+  /** เลขผู้เล่น แสดงบนจอให้คนที่ถูกอธิษฐานเผื่อพิมพ์ค้นหา */
+  seq: number;
   team: Team | null;
   cooldownUntil: string | null;
   gameStatus: GameStatus;
@@ -82,12 +85,13 @@ export async function registerPlayer(input: {
 export async function getMe(playerId: string): Promise<Me | null> {
   const res = await getPool().query<{
     display_name: string;
+    seq: number;
     team: Team | null;
     cooldown_until: Date | null;
     status: GameStatus;
     server_time: Date;
   }>(
-    `SELECT p.display_name, p.team, p.cooldown_until, g.status, now() AS server_time
+    `SELECT p.display_name, p.seq, p.team, p.cooldown_until, g.status, now() AS server_time
        FROM players p CROSS JOIN game_state g
       WHERE p.id = $1`,
     [playerId],
@@ -96,6 +100,7 @@ export async function getMe(playerId: string): Promise<Me | null> {
   if (!row) return null;
   return {
     name: row.display_name,
+    seq: row.seq,
     team: row.team,
     cooldownUntil: row.cooldown_until ? row.cooldown_until.toISOString() : null,
     gameStatus: row.status,
@@ -103,37 +108,84 @@ export async function getMe(playerId: string): Promise<Me | null> {
   };
 }
 
+/** ผลค้นหาคนอธิษฐาน มีทีมของแต่ละคนแต่ไม่มีจำนวนรวมของทีม */
+export type PrayerCandidate = {
+  id: string;
+  name: string;
+  seq: number;
+  pictureUrl: string | null;
+  team: Team;
+};
+
+/**
+ * ค้นคนที่อธิษฐานเผื่อ: เฉพาะคนที่มีทีมและไม่ใช่ทีมเดียวกับผู้ค้น ไม่รวมตัวเอง
+ * ต้องมีคำค้นและได้ไม่เกิน PRAYER_SEARCH_LIMIT คน ไม่มีรายชื่อทั้งทีม เพื่อไม่ให้ผู้เล่นนับจำนวนคนของทีมได้
+ */
+export async function searchPrayers(playerId: string, raw: string): Promise<PrayerCandidate[]> {
+  const q = parsePrayerQuery(raw);
+  if (!q) return [];
+  const res = await getPool().query<{
+    id: string;
+    display_name: string;
+    seq: number;
+    picture_url: string | null;
+    team: Team;
+  }>(
+    `SELECT c.id, c.display_name, c.seq, c.picture_url, c.team
+       FROM players c CROSS JOIN players me
+      WHERE me.id = $1
+        AND c.id <> me.id
+        AND c.team IS NOT NULL
+        AND c.team IS DISTINCT FROM me.team
+        AND (CASE WHEN $2::int IS NOT NULL THEN c.seq = $2::int ELSE c.display_name ILIKE $3::text END)
+      ORDER BY c.display_name, c.seq
+      LIMIT $4`,
+    [playerId, q.kind === "seq" ? q.seq : null, q.kind === "name" ? q.pattern : null, PRAYER_SEARCH_LIMIT],
+  );
+  return res.rows.map((r) => ({
+    id: r.id,
+    name: r.display_name,
+    seq: r.seq,
+    pictureUrl: r.picture_url,
+    team: r.team,
+  }));
+}
+
 /**
  * เปลี่ยนทีม (docs/tech-design.md ข้อ 4) statement เดียว atomic
- * true = เปลี่ยนสำเร็จ, false = อยู่ทีมนั้นอยู่แล้ว ติด cooldown หรือเกมไม่ได้ running
+ * byId คือคนที่อธิษฐานเผื่อ to คือทีมที่ผู้เล่นเห็นบนจอยืนยัน ต้องตรงกับทีมของคนอธิษฐาน ณ ตอนนี้
+ * (ถ้าคนอธิษฐานย้ายทีมไประหว่างที่เลือก จะไม่ย้ายผู้เล่นไปทีมที่เขาไม่ได้ยืนยัน)
+ * true = เปลี่ยนสำเร็จ, false = คนอธิษฐานเป็นตัวเอง ไม่ได้อยู่ทีม to อยู่ทีมเดียวกัน ติด cooldown หรือเกมไม่ได้ running
  * กดซ้ำตอนเน็ตหลุดจึงไม่มีผล: ครั้งที่สองได้ false แล้ว API ตอบสถานะปัจจุบันกลับไป
  *
  * ต่างจากในเอกสารจุดเดียว: lock แถว game_state แบบ FOR SHARE ด้วย
  * เพื่อให้การกดประกาศผลหรือพักเกมรอ switch ที่ค้างอยู่ให้จบก่อน ผลจึงไม่ขยับหลัง lock
+ * แถวของคนอธิษฐานอ่านโดยไม่ lock: ถ้าสองคนอธิษฐานเผื่อกันและกดพร้อมกันจะไม่ deadlock
  */
-export async function switchTeam(playerId: string, to: Team): Promise<boolean> {
+export async function switchTeam(playerId: string, byId: string, to: Team): Promise<boolean> {
   const res = await getPool().query<{ moved: number }>(
     `WITH moved AS (
        UPDATE players p
-          SET team = $2::team,
+          SET team = b.team,
               cooldown_until = now() + interval '20 minutes'
          FROM (
            SELECT pl.id, pl.team AS old_team
              FROM players pl CROSS JOIN game_state g
             WHERE pl.id = $1 AND g.status = 'running'
               FOR UPDATE OF pl FOR SHARE OF g
-         ) o
+         ) o,
+         (SELECT id, team FROM players WHERE id = $2 AND id <> $1 AND team = $3::team) b
         WHERE p.id = o.id
-          AND p.team IS DISTINCT FROM $2::team
+          AND p.team IS DISTINCT FROM b.team
           AND (p.cooldown_until IS NULL OR p.cooldown_until <= now())
-       RETURNING p.id, o.old_team, p.team
+       RETURNING p.id, o.old_team, p.team, b.id AS by_id
      ), ev AS (
-       INSERT INTO team_events (player_id, from_team, to_team, kind)
-       SELECT id, old_team, team, 'switch' FROM moved
+       INSERT INTO team_events (player_id, from_team, to_team, kind, by_player_id)
+       SELECT id, old_team, team, 'switch', by_id FROM moved
        RETURNING 1
      )
      SELECT count(*)::int AS moved FROM moved`,
-    [playerId, to],
+    [playerId, byId, to],
   );
   return res.rows[0].moved === 1;
 }

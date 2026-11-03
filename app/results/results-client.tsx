@@ -3,17 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Timeline, TimelineState, TimelineStep } from "@/lib/results";
 import { PinForm, adminPin, pinHeaders } from "../ui/admin-pin";
+import { Avatar } from "../ui/avatar";
 import { TEAM, TeamIcon, type GameStatus } from "../ui/teams";
 import styles from "./results.module.css";
 
 // เข้ามาแล้วยังไม่เปิดเผยผล กดเริ่มจึง lock เกมแล้วเล่น recap
 // โหลด timeline ทั้งก้อนก่อนเล่น จึงไม่พึ่งเน็ตระหว่าง animation (docs/tech-design.md ข้อ 8)
+// จบผลทีมแล้วกดดูอันดับคนพาย้ายทีม เปิดทีละอันดับ 3 → 2 → 1 ตามจังหวะของคนกด
 
 type View =
   | { kind: "loading" }
   | { kind: "unauthorized" }
   | { kind: "idle"; status: GameStatus; error?: string }
-  | { kind: "show"; timeline: Timeline; index: number; playing: boolean };
+  | { kind: "show"; timeline: Timeline; index: number; playing: boolean; rank: number | null };
+// rank: null = ยังดูผลทีมอยู่, ตัวเลข = เปิดอันดับไปแล้วกี่อันดับ (นับจากอันดับสุดท้ายขึ้นมา)
 
 const TOTAL_MS = 36_000; // เดินตาม event ด้วยความเร็วคงที่ รวมราว 30 ถึง 45 วินาที
 const clockFormat = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit" });
@@ -27,8 +30,9 @@ function describe(step: TimelineStep): string {
   if (step.kind === "join") return `${time} ${step.name} ลงทะเบียน`;
   const target = step.to ? `ทีม${TEAM[step.to].name}` : "ยังไม่มีทีม";
   if (step.kind === "admin_move") return `${time} admin ย้าย ${step.name} ไป${target}`;
-  if (step.from && step.to) return `${time} ${step.name} ย้ายจาก${TEAM[step.from].name}ไป${TEAM[step.to].name}`;
-  return `${time} ${step.name} เข้า${target}`;
+  const by = step.by ? `${step.by} พา ` : "";
+  if (step.from && step.to) return `${time} ${by}${step.name} ย้ายจาก${TEAM[step.from].name}ไป${TEAM[step.to].name}`;
+  return `${time} ${by}${step.name} เข้า${target}`;
 }
 
 function cssVar(name: string) {
@@ -132,7 +136,7 @@ export default function ResultsClient() {
       if (res.status === 409) return setView({ kind: "idle", status: "registration" });
       if (!res.ok) throw new Error("reveal failed");
       const timeline: Timeline = await res.json();
-      setView({ kind: "show", timeline, index: -1, playing: timeline.steps.length > 0 });
+      setView({ kind: "show", timeline, index: -1, playing: timeline.steps.length > 0, rank: null });
     } catch {
       setView((v) => (v.kind === "idle" ? { ...v, error: "ต่อเซิร์ฟเวอร์ไม่ได้ ลองกดอีกครั้ง" } : v));
     } finally {
@@ -209,7 +213,51 @@ export default function ResultsClient() {
     );
   }
 
-  const { timeline, index, playing } = view;
+  const { timeline, index, playing, rank } = view;
+
+  if (rank !== null) {
+    const { ranking } = timeline;
+    const allOpen = rank >= ranking.length;
+    return (
+      <main className={styles.page}>
+        <div className={styles.stage}>
+          <h1 className={styles.rankTitle}>ใครพาคนย้ายทีมได้มากที่สุด</h1>
+          <ol className={styles.ranking}>
+            {ranking.map((entry, i) => {
+              const open = i >= ranking.length - rank;
+              return (
+                <li key={i} className={`${styles.rankRow} ${open ? styles.rankOpen : ""} ${i === 0 ? styles.rankFirst : ""}`}>
+                  <span className={styles.rankNo}>{i + 1}</span>
+                  {open ? (
+                    <>
+                      <Avatar name={entry.name} src={entry.pictureUrl} size={72} className={styles.rankAvatar} />
+                      <span className={styles.rankName}>{entry.name}</span>
+                      <span className={styles.rankCount}>
+                        <b>{entry.count}</b> คน
+                      </span>
+                    </>
+                  ) : (
+                    <span className={styles.rankName}>?</span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+          <div className={styles.actions}>
+            {!allOpen && (
+              <button className={styles.startButton} onClick={() => setView({ ...view, rank: rank + 1 })}>
+                เปิดอันดับ {ranking.length - rank}
+              </button>
+            )}
+            <button className={styles.button} onClick={() => setView({ ...view, rank: null })}>
+              กลับไปผลทีม
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const state: TimelineState = index < 0 ? timeline.init : timeline.steps[index];
   const day = index < 0 ? 1 : timeline.steps[index].day;
   const done = !playing;
@@ -269,6 +317,11 @@ export default function ResultsClient() {
           {playing && (
             <button className={styles.button} onClick={() => setView({ ...view, index: timeline.steps.length - 1, playing: false })}>
               ข้ามไปผลสุดท้าย
+            </button>
+          )}
+          {done && timeline.ranking.length > 0 && (
+            <button className={styles.startButton} onClick={() => setView({ ...view, rank: 0 })}>
+              ดูอันดับคนพาย้ายทีม
             </button>
           )}
           {done && timeline.steps.length > 0 && (

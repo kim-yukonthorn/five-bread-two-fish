@@ -27,6 +27,8 @@ export type AdminEvent = {
   id: string;
   at: string;
   name: string;
+  /** คนที่อธิษฐานเผื่อ (switch เท่านั้น) */
+  by: string | null;
   from: Team | null;
   to: Team | null;
   kind: "join" | "switch" | "admin_move";
@@ -80,12 +82,14 @@ export async function getEvents(limit = 500): Promise<AdminEvent[]> {
     id: string;
     created_at: Date;
     display_name: string;
+    by_name: string | null;
     from_team: Team | null;
     to_team: Team | null;
     kind: AdminEvent["kind"];
   }>(
-    `SELECT e.id, e.created_at, p.display_name, e.from_team, e.to_team, e.kind
+    `SELECT e.id, e.created_at, p.display_name, b.display_name AS by_name, e.from_team, e.to_team, e.kind
        FROM team_events e JOIN players p ON p.id = e.player_id
+       LEFT JOIN players b ON b.id = e.by_player_id
       ORDER BY e.created_at DESC, e.id DESC
       LIMIT $1`,
     [limit],
@@ -94,6 +98,7 @@ export async function getEvents(limit = 500): Promise<AdminEvent[]> {
     id: String(r.id),
     at: r.created_at.toISOString(),
     name: r.display_name,
+    by: r.by_name,
     from: r.from_team,
     to: r.to_team,
     kind: r.kind,
@@ -201,7 +206,7 @@ export async function exportAll() {
          FROM players ORDER BY seq`,
     ),
     pool.query(
-      "SELECT id, player_id, from_team, to_team, kind, created_at FROM team_events ORDER BY created_at, id",
+      "SELECT id, player_id, from_team, to_team, kind, by_player_id, created_at FROM team_events ORDER BY created_at, id",
     ),
   ]);
   return {
