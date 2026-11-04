@@ -35,7 +35,8 @@ CREATE TABLE game_state (
 CREATE TABLE players (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   line_user_id   text UNIQUE,             -- NULL = admin เพิ่มให้ (ไม่มี LINE)
-  display_name   text NOT NULL,
+  display_name   text NOT NULL,           -- ชื่อ LINE (อัปเดตทุกครั้งที่เปิดแอป)
+  nickname       text,                    -- ชื่อเล่นที่ผู้เล่นตั้งเอง NULL = ยังไม่ตั้ง ใช้แสดงแทนชื่อ LINE
   picture_url    text,
   seq            integer NOT NULL UNIQUE, -- ลำดับลงทะเบียน
   team           team,                    -- NULL = ยังไม่มีทีม
@@ -58,7 +59,9 @@ CREATE INDEX team_events_time ON team_events (created_at, id);
 
 `players.team` คือสถานะปัจจุบัน ส่วน `team_events` คือประวัติสำหรับ recap ทั้งสองอัปเดตใน statement/transaction เดียวกันเสมอ
 
-`players.seq` เป็น "เลขของฉัน" บนจอผู้เล่นด้วย DB ที่สร้างก่อนมี `by_player_id` ให้รัน `db/migrations/001-by-player.sql`
+`players.seq` เป็น "เลขของฉัน" บนจอผู้เล่นด้วย DB ที่สร้างก่อนมี `by_player_id` ให้รัน `db/migrations/001-by-player.sql` และก่อนมี `nickname` ให้รัน `002-nickname.sql`
+
+ชื่อที่แสดงทุกที่คือ `COALESCE(nickname, display_name)` ชื่อเล่นผ่าน `cleanNickname` (`lib/nickname.ts`): NFC, ยุบช่องว่าง, 1–20 ตัวที่ตาเห็น, ไม่มีตัวควบคุม `registerPlayer` ไม่แตะ `nickname` เปิดแอปซ้ำจึงไม่ล้างชื่อเล่น
 
 ## 3. ทีมเริ่มต้นตอนลงทะเบียน
 
@@ -163,12 +166,14 @@ API
 | Method + Path | ทำอะไร |
 |---|---|
 | `POST /api/session` | verify ID token, ลงทะเบียนถ้ายังไม่มี, ออก cookie |
-| `GET /api/me` | `{ seq, team, cooldownUntil, gameStatus, serverTime }` โดย `team` เป็น `'bread' \| 'fish' \| null` |
-| `GET /api/prayers?q=` | ค้นคนที่อธิษฐานเผื่อด้วยเลขผู้เล่น (ตรงตัว) หรือชื่อ LINE บางส่วน เฉพาะคนที่มีทีมและไม่ใช่ทีมเดียวกับผู้ค้น ไม่รวมตัวเอง ไม่เกิน 8 คน ไม่มีคำค้นได้รายการว่าง ตอบ `{ players: [{ id, name, seq, pictureUrl, team }] }` |
+| `GET /api/me` | `{ name, nickname, seq, team, cooldownUntil, gameStatus, serverTime }` โดย `team` เป็น `'bread' \| 'fish' \| null` |
+| `GET /api/prayers?q=` | ค้นคนที่อธิษฐานเผื่อด้วยเลขผู้เล่น (ตรงตัว) หรือชื่อเล่น / ชื่อ LINE บางส่วน เฉพาะคนที่มีทีมและไม่ใช่ทีมเดียวกับผู้ค้น ไม่รวมตัวเอง ไม่เกิน 8 คน ไม่มีคำค้นได้รายการว่าง ตอบ `{ players: [{ id, name, lineName, seq, pictureUrl, team }] }` โดย `name` เป็นชื่อเล่น |
+| `POST /api/nickname` | `{ nickname }` ตั้งหรือแก้ชื่อเล่นของตัวเอง ได้จนกว่าจะ `finished` ตอบ `{ saved, ...me }` ชื่อใช้ไม่ได้ตอบ 400 |
 | `POST /api/switch` | body `{ by: <id คนอธิษฐาน>, to: ทีมของคนนั้นที่เห็นบนจอยืนยัน }` ตอบ `{ moved, seq, team, cooldownUntil, gameStatus, serverTime }` |
 | `GET /api/admin/overview` | จำนวนขนมปัง / ปลา / ยังไม่มีทีม, รายชื่อ, สถานะเกม |
 | `GET /api/admin/events` | log การเปลี่ยนทีม |
-| `POST /api/admin/players` | เพิ่มคนไม่มี LINE |
+| `POST /api/admin/players` | `{ name }` เพิ่มคนไม่มี LINE ชื่อนี้เป็นทั้งชื่อหลักและชื่อเล่น |
+| `POST /api/admin/players/[id]/nickname` | `{ nickname }` admin แก้ชื่อเล่นแทน |
 | `POST /api/admin/players/[id]/move` | `{ to: 'bread' \| 'fish' \| null, applyCooldown }` บันทึกเป็น `admin_move` |
 | `POST /api/admin/game` | `{ action: 'start' \| 'pause' \| 'resume', force? }` ถ้า `start` แล้วไม่ใช่ 5 กับ 2 ตอบ 409 `seed_mismatch` จนกว่าจะส่ง `force` |
 | `POST /api/admin/reset` | ล้าง players + events, `next_seq = 1`, สุ่ม `assign_seed` ใหม่ กลับเป็น `registration` ใช้ได้ตอน `registration` และ `finished` |
@@ -178,7 +183,7 @@ API
 
 Admin และ results API เปิดใช้ได้เลยถ้าไม่ตั้ง `ADMIN_PIN` ใน env ถ้าตั้งไว้ ต้องส่ง PIN ทาง header `x-admin-pin` (หน้าเว็บถามหนึ่งครั้งแล้วจำไว้ในเครื่อง) ใช้ PIN เดียวกันทั้งสองหน้า
 
-`/api/me`, `/api/prayers` และ `/api/switch` **ไม่ส่งจำนวนคนของทีม** เพื่อไม่ให้ผู้เล่นรู้ผลก่อน `/api/prayers` จึงไม่มีรายชื่อทั้งทีมให้ดูล่วงหน้า ต้องพิมพ์ก่อนและได้ไม่เกิน 8 คน
+`/api/me`, `/api/prayers`, `/api/nickname` และ `/api/switch` **ไม่ส่งจำนวนคนของทีม** เพื่อไม่ให้ผู้เล่นรู้ผลก่อน `/api/prayers` จึงไม่มีรายชื่อทั้งทีมให้ดูล่วงหน้า ต้องพิมพ์ก่อนและได้ไม่เกิน 8 คน
 
 `start` ควรเตือนถ้าขนมปังไม่เท่ากับ 5 หรือปลาไม่เท่ากับ 2 (เช่น ลงทะเบียนไม่ถึง 7 คน หรือ admin ย้ายผิด)
 

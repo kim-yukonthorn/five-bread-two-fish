@@ -11,7 +11,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
   const { getPool } = await import("../lib/db");
-  const { registerPlayer, searchPrayers, switchTeam } = await import("../lib/players");
+  const { getMe, registerPlayer, searchPrayers, setNickname, switchTeam } = await import("../lib/players");
   const { adminMove, gameAction, getOverview, resetGame } = await import("../lib/admin");
   const { reveal } = await import("../lib/results");
   const pool = getPool();
@@ -75,6 +75,17 @@ async function main() {
   check((await switchTeam(first.id, fishSeed.id, "fish")) === false, "เกมยังไม่เริ่ม เปลี่ยนทีมไม่ได้");
   const start = await gameAction("start");
   check(start.ok, "เริ่มเกมได้เมื่อขนมปัง 5 ปลา 2");
+
+  // ชื่อเล่น: ขนมปังสองคนชื่อซ้ำกัน ปลาคนแรกตั้งชื่อที่ไม่ซ้ำใคร
+  check(
+    (await setNickname(breadSeed.id, "ต้น")) && (await setNickname(breads[1].id, "ต้น")) && (await setNickname(fishSeed.id, "ปลาวาฬ")),
+    "ตั้งชื่อเล่นได้ และชื่อซ้ำกันได้",
+  );
+  await registerPlayer({ lineUserId: `loadtest:${fishSeed.seq}`, displayName: `ทดสอบ ${fishSeed.seq}` });
+  check((await getMe(fishSeed.id))?.nickname === "ปลาวาฬ", "เปิดแอปซ้ำแล้วชื่อเล่นไม่หาย");
+  const twins = await searchPrayers(fishSeed.id, "ต้น");
+  check(twins.length === 2 && twins.every((p) => p.name === "ต้น" && p.lineName.startsWith("ทดสอบ")), "ค้นชื่อเล่นที่ซ้ำกันเจอทั้งสองคน พร้อมชื่อ LINE");
+  check((await searchPrayers(breadSeed.id, "วาฬ"))[0]?.id === fishSeed.id, "ค้นด้วยชื่อเล่นบางส่วนเจอ");
 
   // ค้นคนอธิษฐาน: เฉพาะทีมตรงข้าม ไม่รวมตัวเอง ไม่เกิน 8 คน
   const byNumber = await searchPrayers(first.id, String(fishSeed.seq));
@@ -164,12 +175,14 @@ async function main() {
       `อันดับคนพาย้ายทีม ${ranking} (ต้องได้ ${fishCount}, ${breadCount}, 1)`,
     );
     check(timeline.steps.every((s) => (s.kind === "switch") === (s.by !== null)), "timeline บอกชื่อคนอธิษฐานของทุก switch");
+    check(timeline.ranking[0].name === "ปลาวาฬ" && timeline.ranking[1].name === "ต้น", "อันดับและ recap ใช้ชื่อเล่น");
     const again = await reveal();
     check(again?.finishedAt === timeline.finishedAt && again.steps.length === timeline.steps.length, "กดประกาศผลซ้ำได้ timeline เดิม");
   }
   check((await switchTeam(first.id, breadSeed.id, "bread")) === false, "ประกาศผลแล้ว ผู้เล่นเปลี่ยนทีมไม่ได้");
   check((await adminMove(first.id, "bread", false)) === false, "ประกาศผลแล้ว admin ย้ายทีมไม่ได้");
   check((await gameAction("resume")).ok === false, "ประกาศผลแล้ว เปิดเกมต่อไม่ได้");
+  check((await setNickname(first.id, "ใหม่")) === false, "ประกาศผลแล้ว แก้ชื่อเล่นไม่ได้");
 
   // ---------- จบ ----------
   if (keep) {

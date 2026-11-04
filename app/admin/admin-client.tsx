@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import type { AdminEvent, AdminOverview, Counts } from "@/lib/admin";
+import type { AdminEvent, AdminOverview, AdminPlayer, Counts } from "@/lib/admin";
+import { NICKNAME_MAX } from "@/lib/nickname";
 import { PinForm, adminPin, pinHeaders } from "../ui/admin-pin";
 import { STATUS_LABEL, TeamIcon, teamName, type Team } from "../ui/teams";
 import { formatCountdown, useClockSeconds } from "../ui/use-clock";
@@ -119,6 +120,17 @@ export default function AdminClient() {
     }
   }
 
+  async function rename(p: AdminPlayer) {
+    const nickname = window.prompt(`ชื่อเล่นใหม่ของ ${p.name} (LINE: ${p.lineName})`, p.nickname ?? "")?.trim();
+    if (!nickname || nickname === p.nickname) return;
+    const res = await act(`/api/admin/players/${p.id}/nickname`, { nickname });
+    if (res?.status === 400) setMessage(`ชื่อเล่นต้องมี 1 ถึง ${NICKNAME_MAX} ตัวอักษร`);
+    else if (res?.ok) {
+      const data: { saved: boolean } = await res.json();
+      if (!data.saved) setMessage("แก้ชื่อเล่นไม่ได้หลังประกาศผล");
+    }
+  }
+
   async function addPlayer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -231,7 +243,14 @@ export default function AdminClient() {
                         <img className={styles.avatar} src={p.pictureUrl} alt="" loading="lazy" width={28} height={28} />
                       )}
                       <span className={styles.name}>{p.name}</span>
+                      {p.hasLine && p.lineName !== p.name && <span className={styles.lineName}>LINE: {p.lineName}</span>}
                       {!p.hasLine && <span className={styles.tag}>ไม่มี LINE</span>}
+                      {p.nickname === null && <span className={styles.tag}>ยังไม่ตั้งชื่อเล่น</span>}
+                      {!finished && (
+                        <button className={styles.linkButton} disabled={busy} onClick={() => rename(p)}>
+                          แก้ชื่อ
+                        </button>
+                      )}
                       {left > 0 && <span className={styles.cooldown}>ติด cooldown {formatCountdown(left)}</span>}
                     </span>
                     <Pill team={p.team} />
@@ -251,7 +270,13 @@ export default function AdminClient() {
               })}
             </ul>
             <form className={styles.inline} onSubmit={addPlayer}>
-              <input name="name" placeholder="ชื่อคนที่ไม่มี LINE" aria-label="ชื่อคนที่ไม่มี LINE" maxLength={60} disabled={finished} />
+              <input
+                name="name"
+                placeholder="ชื่อเล่นของคนที่ไม่มี LINE"
+                aria-label="ชื่อเล่นของคนที่ไม่มี LINE"
+                maxLength={NICKNAME_MAX * 3}
+                disabled={finished}
+              />
               <button className={styles.button} disabled={busy || finished}>
                 เพิ่ม
               </button>

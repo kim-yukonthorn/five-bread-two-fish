@@ -6,7 +6,7 @@ import { SESSION_COOKIE, verifySession } from "@/lib/session";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // POST /api/switch  body { by: <id ของคนที่อธิษฐานเผื่อ จาก /api/prayers>, to: ทีมของคนนั้นที่เห็นบนจอยืนยัน }
-// ย้ายเมื่อคนอธิษฐานยังอยู่ทีม to ตอบ { moved, name, seq, team, cooldownUntil, gameStatus, serverTime } ไม่ส่งจำนวนคนของทีม
+// ย้ายเมื่อคนอธิษฐานยังอยู่ทีม to ตอบ { moved, name, nickname, seq, team, cooldownUntil, gameStatus, serverTime } ไม่ส่งจำนวนคนของทีม
 // moved = false ก็ยังตอบสถานะปัจจุบันเสมอ client จึง retry ได้อย่างปลอดภัยเมื่อเน็ตหลุด
 export async function POST(request: Request) {
   const cookieStore = await cookies();

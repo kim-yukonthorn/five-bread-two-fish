@@ -6,7 +6,10 @@ export type Counts = { bread: number; fish: number; none: number };
 
 export type AdminPlayer = {
   id: string;
+  /** ชื่อที่แสดง: ชื่อเล่น ถ้ายังไม่ตั้งเป็นชื่อ LINE */
   name: string;
+  nickname: string | null;
+  lineName: string;
   seq: number;
   team: Team | null;
   cooldownUntil: string | null;
@@ -45,13 +48,14 @@ export async function getOverview(): Promise<AdminOverview> {
     pool.query<{
       id: string;
       display_name: string;
+      nickname: string | null;
       seq: number;
       team: Team | null;
       cooldown_until: Date | null;
       has_line: boolean;
       picture_url: string | null;
     }>(
-      `SELECT id, display_name, seq, team, cooldown_until, line_user_id IS NOT NULL AS has_line, picture_url
+      `SELECT id, display_name, nickname, seq, team, cooldown_until, line_user_id IS NOT NULL AS has_line, picture_url
          FROM players ORDER BY seq`,
     ),
   ]);
@@ -65,7 +69,9 @@ export async function getOverview(): Promise<AdminOverview> {
     counts: { bread: count("bread"), fish: count("fish"), none: count(null) },
     players: players.rows.map((p) => ({
       id: p.id,
-      name: p.display_name,
+      name: p.nickname ?? p.display_name,
+      nickname: p.nickname,
+      lineName: p.display_name,
       seq: p.seq,
       team: p.team,
       cooldownUntil: iso(p.cooldown_until),
@@ -87,7 +93,8 @@ export async function getEvents(limit = 500): Promise<AdminEvent[]> {
     to_team: Team | null;
     kind: AdminEvent["kind"];
   }>(
-    `SELECT e.id, e.created_at, p.display_name, b.display_name AS by_name, e.from_team, e.to_team, e.kind
+    `SELECT e.id, e.created_at, COALESCE(p.nickname, p.display_name) AS display_name,
+            COALESCE(b.nickname, b.display_name) AS by_name, e.from_team, e.to_team, e.kind
        FROM team_events e JOIN players p ON p.id = e.player_id
        LEFT JOIN players b ON b.id = e.by_player_id
       ORDER BY e.created_at DESC, e.id DESC
@@ -202,7 +209,7 @@ export async function exportAll() {
   const [state, players, events] = await Promise.all([
     pool.query("SELECT status, assign_seed, next_seq, started_at, finished_at FROM game_state"),
     pool.query(
-      `SELECT id, line_user_id, display_name, picture_url, seq, team, cooldown_until, created_at
+      `SELECT id, line_user_id, display_name, nickname, picture_url, seq, team, cooldown_until, created_at
          FROM players ORDER BY seq`,
     ),
     pool.query(

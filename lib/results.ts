@@ -67,7 +67,9 @@ export async function reveal(): Promise<Timeline | null> {
     total: number;
     before_start: boolean;
   }>(
-    `SELECT e.created_at, e.kind, e.from_team, e.to_team, p.display_name, b.display_name AS by_name,
+    `SELECT e.created_at, e.kind, e.from_team, e.to_team,
+            COALESCE(p.nickname, p.display_name) AS display_name,
+            COALESCE(b.nickname, b.display_name) AS by_name,
             ((e.created_at AT TIME ZONE $1)::date - (g.started_at AT TIME ZONE $1)::date + 1)::int AS day,
             e.created_at <= g.started_at AS before_start,
             (SUM(CASE WHEN e.to_team = 'bread' THEN 1 ELSE 0 END
@@ -116,12 +118,12 @@ export async function reveal(): Promise<Timeline | null> {
 /** นับจาก team_events ตรงๆ (ไม่มีตัวนับแยก) admin_move ไม่มีคนอธิษฐานจึงไม่นับ */
 async function getRanking(): Promise<RankEntry[]> {
   const res = await getPool().query<{ display_name: string; picture_url: string | null; n: number }>(
-    `SELECT b.display_name, b.picture_url, count(*)::int AS n
+    `SELECT COALESCE(b.nickname, b.display_name) AS display_name, b.picture_url, count(*)::int AS n
        FROM team_events e
        JOIN players b ON b.id = e.by_player_id
       CROSS JOIN game_state g
       WHERE e.kind = 'switch' AND e.created_at <= g.finished_at
-      GROUP BY b.id, b.display_name, b.picture_url, b.seq
+      GROUP BY b.id, b.nickname, b.display_name, b.picture_url, b.seq
       ORDER BY n DESC, max(e.created_at), b.seq
       LIMIT 3`,
   );

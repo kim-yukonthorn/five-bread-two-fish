@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore, type FormEvent 
 import type { PrayerCandidate } from "@/lib/players";
 import { meStore, type Me } from "./me-store";
 import styles from "./my-team.module.css";
+import { NicknameForm } from "./nickname-form";
 import { PrayerPicker } from "./prayer-picker";
 import { Avatar } from "./ui/avatar";
 import { TEAM, TeamIcon } from "./ui/teams";
@@ -13,7 +14,7 @@ import { formatCountdown, useClockSeconds } from "./ui/use-clock";
 // ผู้เล่นไม่เห็นจำนวนคนของแต่ละทีม และคนที่ถูกอธิษฐานเผื่อเป็นคนกดเอง
 // กดแล้วเลือกว่าใครอธิษฐานเผื่อ ทีมใหม่คือทีมของคนนั้น (ใช้ทำอันดับตอนประกาศผล)
 
-type Flow = { kind: "closed" } | { kind: "search" } | { kind: "confirm"; by: PrayerCandidate };
+type Flow = { kind: "closed" } | { kind: "search" } | { kind: "confirm"; by: PrayerCandidate } | { kind: "nickname" };
 
 type Gate =
   | { kind: "connecting" }
@@ -161,6 +162,7 @@ export default function MyTeam() {
           const data: Me & { moved: boolean } = await res.json();
           meStore.set({
             name: data.name,
+            nickname: data.nickname,
             seq: data.seq,
             team: data.team,
             cooldownUntil: data.cooldownUntil,
@@ -222,12 +224,29 @@ export default function MyTeam() {
   const inCooldown = cooldownLeft > 0;
   const running = me.gameStatus === "running";
 
+  // ตั้งชื่อเล่นก่อนเห็นทีม (ยกเว้นเกมจบแล้ว ซึ่งตั้งไม่ได้)
+  if (!me.nickname && me.gameStatus !== "finished") {
+    return (
+      <main className={styles.screen}>
+        <div className={styles.inner}>
+          <h1 className={styles.noTeam}>ยินดีต้อนรับ</h1>
+          <NicknameForm initial="" onDone={() => setFlow({ kind: "closed" })} />
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className={`${styles.screen} ${me.team ? styles[me.team] : ""}`}>
       <div className={styles.inner}>
         <p className={styles.hello}>
-          {me.name}
+          <b>{me.nickname ?? me.name}</b>
           {me.team ? " อยู่ทีม" : ""}
+          {me.gameStatus !== "finished" && (
+            <button className={styles.editName} onClick={() => setFlow({ kind: "nickname" })}>
+              แก้ชื่อเล่น
+            </button>
+          )}
         </p>
 
         {me.team ? (
@@ -277,6 +296,18 @@ export default function MyTeam() {
         )}
       </div>
 
+      {flow.kind === "nickname" && (
+        <div className={styles.sheetWrap}>
+          <div className={styles.sheet} role="dialog" aria-modal="true" aria-label="แก้ชื่อเล่น">
+            <NicknameForm
+              initial={me.nickname ?? ""}
+              onDone={() => setFlow({ kind: "closed" })}
+              onCancel={() => setFlow({ kind: "closed" })}
+            />
+          </div>
+        </div>
+      )}
+
       {flow.kind === "search" && (
         <PrayerPicker
           query={query}
@@ -294,6 +325,7 @@ export default function MyTeam() {
           <div className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="confirm-title">
             <Avatar name={flow.by.name} src={flow.by.pictureUrl} size={96} className={`${styles.avatar} ${styles.bigAvatar}`} />
             <h2 id="confirm-title">{flow.by.name}</h2>
+            {flow.by.lineName !== flow.by.name && <p>LINE: {flow.by.lineName}</p>}
             <p>
               เลข {flow.by.seq} · ทีม{TEAM[flow.by.team].name} อธิษฐานเผื่อคุณ
             </p>

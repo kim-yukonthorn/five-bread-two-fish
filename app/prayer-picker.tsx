@@ -72,13 +72,13 @@ export function PrayerPicker({
     <div className={styles.sheetWrap}>
       <div className={`${styles.sheet} ${styles.pickerSheet}`} role="dialog" aria-modal="true" aria-labelledby="picker-title">
         <h2 id="picker-title">ใครอธิษฐานเผื่อคุณ?</h2>
-        <p>พิมพ์เลขบนจอของเขา หรือชื่อ LINE</p>
+        <p>พิมพ์ชื่อเล่น หรือเลขบนจอของเขา</p>
         <input
           className={styles.search}
           value={query}
           onChange={(e) => change(e.target.value)}
-          placeholder="เช่น 27 หรือ สมศรี"
-          aria-label="เลขหรือชื่อของคนที่อธิษฐานเผื่อคุณ"
+          placeholder="เช่น ต้น หรือ 27"
+          aria-label="ชื่อเล่นหรือเลขของคนที่อธิษฐานเผื่อคุณ"
           autoComplete="off"
           autoCorrect="off"
           enterKeyHint="search"
@@ -101,7 +101,10 @@ export function PrayerPicker({
             players.map((p) => (
               <button key={p.id} className={`${styles.person} ${styles[`person_${p.team}`]}`} onClick={() => onPick(p)}>
                 <Avatar name={p.name} src={p.pictureUrl} size={48} className={styles.avatar} />
-                <span className={styles.personName}>{p.name}</span>
+                <span className={styles.personName}>
+                  {p.name}
+                  {p.lineName !== p.name && <small className={styles.lineName}>LINE: {p.lineName}</small>}
+                </span>
                 <span className={styles.personMeta}>
                   เลข {p.seq}
                   <br />

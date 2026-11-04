@@ -1,7 +1,10 @@
 import type { GameStatus, Team } from "./ui/teams";
 
 export type Me = {
+  /** ชื่อ LINE */
   name: string;
+  /** null = ยังไม่ตั้ง จอผู้เล่นให้ตั้งก่อนเล่น ไม่มีใน cache รุ่นก่อนมีชื่อเล่น */
+  nickname?: string | null;
   /** ไม่มีใน cache รุ่นก่อนเพิ่มเลขผู้เล่น จนกว่าจะได้ response ใหม่ */
   seq?: number;
   team: Team | null;
