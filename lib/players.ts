@@ -14,7 +14,10 @@ export type PlayerRow = {
 
 /** รูปแบบที่ API ของผู้เล่นตอบ ไม่มีจำนวนคนของทีม เพื่อไม่ให้ผู้เล่นรู้ผลก่อน */
 export type Me = {
+  /** ชื่อ LINE */
   name: string;
+  /** ชื่อเล่นที่ตั้งเอง null = ยังไม่ตั้ง จอผู้เล่นจะให้ตั้งก่อนเล่น */
+  nickname: string | null;
   /** เลขผู้เล่น แสดงบนจอให้คนที่ถูกอธิษฐานเผื่อพิมพ์ค้นหา */
   seq: number;
   team: Team | null;
@@ -34,6 +37,8 @@ export async function registerPlayer(input: {
   lineUserId: string | null;
   displayName: string;
   pictureUrl?: string | null;
+  /** ใส่เฉพาะคนที่ admin เพิ่มให้ ผู้เล่น LINE ตั้งเองทีหลัง และเปิดแอปซ้ำต้องไม่ล้างชื่อเล่นเดิม */
+  nickname?: string | null;
 }): Promise<{ player: PlayerRow; created: boolean }> {
   const picture = input.pictureUrl ?? null;
 
@@ -68,9 +73,9 @@ export async function registerPlayer(input: {
     const team = assignTeam(seq, gs.rows[0].assign_seed);
     await c.query("UPDATE game_state SET next_seq = next_seq + 1");
     const inserted = await c.query<PlayerRow>(
-      `INSERT INTO players (line_user_id, display_name, picture_url, seq, team)
-       VALUES ($1, $2, $3, $4, $5::team) RETURNING ${PLAYER_COLS}`,
-      [input.lineUserId, input.displayName, picture, seq, team],
+      `INSERT INTO players (line_user_id, display_name, nickname, picture_url, seq, team)
+       VALUES ($1, $2, $3, $4, $5, $6::team) RETURNING ${PLAYER_COLS}`,
+      [input.lineUserId, input.displayName, input.nickname ?? null, picture, seq, team],
     );
     const player = inserted.rows[0];
     await c.query(
@@ -85,13 +90,14 @@ export async function registerPlayer(input: {
 export async function getMe(playerId: string): Promise<Me | null> {
   const res = await getPool().query<{
     display_name: string;
+    nickname: string | null;
     seq: number;
     team: Team | null;
     cooldown_until: Date | null;
     status: GameStatus;
     server_time: Date;
   }>(
-    `SELECT p.display_name, p.seq, p.team, p.cooldown_until, g.status, now() AS server_time
+    `SELECT p.display_name, p.nickname, p.seq, p.team, p.cooldown_until, g.status, now() AS server_time
        FROM players p CROSS JOIN game_state g
       WHERE p.id = $1`,
     [playerId],
@@ -100,6 +106,7 @@ export async function getMe(playerId: string): Promise<Me | null> {
   if (!row) return null;
   return {
     name: row.display_name,
+    nickname: row.nickname,
     seq: row.seq,
     team: row.team,
     cooldownUntil: row.cooldown_until ? row.cooldown_until.toISOString() : null,
@@ -108,10 +115,27 @@ export async function getMe(playerId: string): Promise<Me | null> {
   };
 }
 
+/**
+ * ตั้งหรือแก้ชื่อเล่น (ผ่าน cleanNickname มาแล้ว) ใช้ได้ทุกสถานะยกเว้นหลังประกาศผล
+ * true = บันทึกแล้ว, false = ไม่มีผู้เล่นคนนี้หรือเกมจบแล้ว
+ */
+export async function setNickname(playerId: string, nickname: string): Promise<boolean> {
+  const res = await getPool().query(
+    `UPDATE players p SET nickname = $2
+       FROM game_state g
+      WHERE p.id = $1 AND g.status <> 'finished'`,
+    [playerId, nickname],
+  );
+  return res.rowCount === 1;
+}
+
 /** ผลค้นหาคนอธิษฐาน มีทีมของแต่ละคนแต่ไม่มีจำนวนรวมของทีม */
 export type PrayerCandidate = {
   id: string;
+  /** ชื่อเล่น ถ้ายังไม่ตั้งเป็นชื่อ LINE */
   name: string;
+  /** ชื่อ LINE แสดงตัวเล็กช่วยแยกคนที่ชื่อเล่นซ้ำกัน */
+  lineName: string;
   seq: number;
   pictureUrl: string | null;
   team: Team;
@@ -126,25 +150,28 @@ export async function searchPrayers(playerId: string, raw: string): Promise<Pray
   if (!q) return [];
   const res = await getPool().query<{
     id: string;
+    name: string;
     display_name: string;
     seq: number;
     picture_url: string | null;
     team: Team;
   }>(
-    `SELECT c.id, c.display_name, c.seq, c.picture_url, c.team
+    `SELECT c.id, COALESCE(c.nickname, c.display_name) AS name, c.display_name, c.seq, c.picture_url, c.team
        FROM players c CROSS JOIN players me
       WHERE me.id = $1
         AND c.id <> me.id
         AND c.team IS NOT NULL
         AND c.team IS DISTINCT FROM me.team
-        AND (CASE WHEN $2::int IS NOT NULL THEN c.seq = $2::int ELSE c.display_name ILIKE $3::text END)
-      ORDER BY c.display_name, c.seq
+        AND (CASE WHEN $2::int IS NOT NULL THEN c.seq = $2::int
+                  ELSE c.nickname ILIKE $3::text OR c.display_name ILIKE $3::text END)
+      ORDER BY name, c.seq
       LIMIT $4`,
     [playerId, q.kind === "seq" ? q.seq : null, q.kind === "name" ? q.pattern : null, PRAYER_SEARCH_LIMIT],
   );
   return res.rows.map((r) => ({
     id: r.id,
-    name: r.display_name,
+    name: r.name,
+    lineName: r.display_name,
     seq: r.seq,
     pictureUrl: r.picture_url,
     team: r.team,

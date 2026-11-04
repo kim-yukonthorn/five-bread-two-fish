@@ -18,7 +18,8 @@ CREATE TABLE game_state (
 CREATE TABLE players (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   line_user_id   text UNIQUE,             -- NULL = admin เพิ่มให้ (ไม่มี LINE)
-  display_name   text NOT NULL,
+  display_name   text NOT NULL,           -- ชื่อ LINE (อัปเดตทุกครั้งที่เปิดแอป)
+  nickname       text,                    -- ชื่อเล่นที่ผู้เล่นตั้งเอง NULL = ยังไม่ตั้ง ใช้แสดงแทนชื่อ LINE
   picture_url    text,
   seq            integer NOT NULL UNIQUE, -- ลำดับลงทะเบียน
   team           team,                    -- NULL = ยังไม่มีทีม
