@@ -26,5 +26,12 @@
     "eslint-config-next": "16.4.0",
     "tsx": "^4.23.15",
     "typescript": "^5"
-  }
+  },
+  "browserslist": [
+    "chrome 111",
+    "edge 111",
+    "firefox 111",
+    "safari 16",
+    "ios_saf 16"
+  ]
 }
